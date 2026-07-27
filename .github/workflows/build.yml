@@ -41,6 +41,8 @@ jobs:
       - run: flutter config --enable-windows-desktop
       - name: Compiler Windows
         shell: pwsh
+        env:
+          CMAKE_GENERATOR: "Visual Studio 17 2022"
         run: |
           flutter build windows --release 2>&1 | Tee-Object -FilePath build-logs-windows.txt
           if ($LASTEXITCODE -ne 0) { exit 1 }
