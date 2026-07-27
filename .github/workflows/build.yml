@@ -81,6 +81,10 @@ jobs:
           cp /tmp/pubspec_custom.yaml pubspec.yaml
           cp /tmp/main_custom.dart lib/main.dart
       - run: flutter pub get
+      - name: Restaurer la clé de signature stable
+        run: |
+          mkdir -p ~/.android
+          echo "${{ secrets.DEBUG_KEYSTORE_B64 }}" | base64 -d > ~/.android/debug.keystore
       - name: Compiler Android
         run: |
           set -o pipefail
