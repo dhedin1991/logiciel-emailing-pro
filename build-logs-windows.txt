@@ -9,5 +9,5 @@ CMake Error at CMakeLists.txt:3 (project):
 
 
 
-Building Windows application...                                    917ms
+Building Windows application...                                    173ms
 Unable to generate build files
