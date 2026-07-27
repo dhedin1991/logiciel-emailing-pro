@@ -14,6 +14,20 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Sauvegarder les fichiers personnalisés
+        run: |
+          copy pubspec.yaml pubspec_custom.yaml
+          copy lib\main.dart main_custom.dart
+        shell: cmd
+      - name: Générer les dossiers de plateforme manquants
+        run: flutter create --platforms=windows --project-name logiciel_emailing_pro --org com.dhedin1991.emailingpro .
+      - name: Restaurer les fichiers personnalisés
+        run: |
+          copy pubspec_custom.yaml pubspec.yaml
+          copy main_custom.dart lib\main.dart
+          del pubspec_custom.yaml
+          del main_custom.dart
+        shell: cmd
       - run: flutter pub get
       - run: flutter config --enable-windows-desktop
       - run: flutter build windows --release
@@ -30,6 +44,16 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Sauvegarder les fichiers personnalisés
+        run: |
+          cp pubspec.yaml /tmp/pubspec_custom.yaml
+          cp lib/main.dart /tmp/main_custom.dart
+      - name: Générer les dossiers de plateforme manquants
+        run: flutter create --platforms=android --project-name logiciel_emailing_pro --org com.dhedin1991.emailingpro .
+      - name: Restaurer les fichiers personnalisés
+        run: |
+          cp /tmp/pubspec_custom.yaml pubspec.yaml
+          cp /tmp/main_custom.dart lib/main.dart
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
