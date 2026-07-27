@@ -28,6 +28,10 @@ jobs:
           del pubspec_custom.yaml
           del main_custom.dart
         shell: cmd
+      - name: Activer le mode développeur Windows
+        run: |
+          reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+        shell: cmd
       - run: flutter pub get
       - run: flutter config --enable-windows-desktop
       - run: flutter build windows --release
