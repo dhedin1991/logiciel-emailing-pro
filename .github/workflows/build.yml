@@ -53,14 +53,8 @@ jobs:
           git config user.email "ci-bot@local"
           git config user.name "CI Bot"
           git add build-logs-windows.txt -f
-          git commit -m "Log erreur build Windows" 
+          git commit -m "Log erreur build Windows"
           git push origin HEAD:main
-      - uses: actions/upload-artifact@v4.4.3
-        if: success()
-        with:
-          if-no-files-found: error
-          name: windows-build
-          path: build/windows/x64/runner/Release/
 
   build-android:
     runs-on: ubuntu-latest
@@ -83,12 +77,6 @@ jobs:
           cp /tmp/pubspec_custom.yaml pubspec.yaml
           cp /tmp/main_custom.dart lib/main.dart
       - run: flutter pub get
-      - name: Test diagnostic upload
-        run: echo "test" > diagnostic.txt
-      - uses: actions/upload-artifact@v4.4.3
-        with:
-          name: diagnostic-windows
-          path: diagnostic.txt
       - name: Restaurer la clé de signature stable
         run: |
           mkdir -p ~/.android
@@ -105,9 +93,3 @@ jobs:
           git add build-logs-android.txt -f
           git commit -m "Log erreur build Android"
           git push origin HEAD:main
-      - uses: actions/upload-artifact@v4.4.3
-        if: success()
-        with:
-          if-no-files-found: error
-          name: android-build
-          path: build/app/outputs/flutter-apk/app-release.apk
