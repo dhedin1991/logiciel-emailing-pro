@@ -83,6 +83,12 @@ jobs:
           cp /tmp/pubspec_custom.yaml pubspec.yaml
           cp /tmp/main_custom.dart lib/main.dart
       - run: flutter pub get
+      - name: Test diagnostic upload
+        run: echo "test" > diagnostic.txt
+      - uses: actions/upload-artifact@v4.4.3
+        with:
+          name: diagnostic-windows
+          path: diagnostic.txt
       - name: Restaurer la clé de signature stable
         run: |
           mkdir -p ~/.android
