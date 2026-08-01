@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/accounts_screen.dart';
 import 'screens/compose_screen.dart';
 import 'screens/contacts_screen.dart';
+import 'screens/templates_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -58,15 +59,17 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= 800;
 
-    // Sections déjà construites : Contacts (1), Rédaction (3), Paramètres (6).
+    // Sections déjà construites : Contacts (1), Modèles (2), Rédaction (3), Paramètres (6).
     // Les autres restent à faire dans les prochaines étapes.
     Widget content;
     if (_selectedIndex == 1) {
       content = const ContactsScreen();
+    } else if (_selectedIndex == 2) {
+      content = const TemplatesScreen();
     } else if (_selectedIndex == 3) {
       content = const ComposeScreen();
     } else if (_selectedIndex == 6) {
-      content = const AccountsScreen();
+      content = const SettingsScreen();
     } else {
       content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
     }
