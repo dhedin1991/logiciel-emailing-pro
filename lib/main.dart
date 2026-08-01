@@ -3,6 +3,7 @@ import 'screens/compose_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/settings_screen.dart';
+import 'services/scheduler_service.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -44,6 +45,19 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
+  final _scheduler = SchedulerService();
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduler.start();
+  }
+
+  @override
+  void dispose() {
+    _scheduler.stop();
+    super.dispose();
+  }
 
   static const List<_Section> _sections = [
     _Section('Tableau de bord', Icons.dashboard_outlined, Icons.dashboard),
