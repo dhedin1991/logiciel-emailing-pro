@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/accounts_screen.dart';
+import 'screens/compose_screen.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -56,11 +57,16 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= 800;
 
-    // Section "Paramètres" (index 6) affiche déjà la gestion des comptes.
-    // Les autres sections restent à construire dans les prochaines étapes.
-    final content = _selectedIndex == 6
-        ? const AccountsScreen()
-        : _PlaceholderScreen(title: _sections[_selectedIndex].label);
+    // Section "Rédaction" (index 3) et "Paramètres" (index 6) sont déjà
+    // construites. Les autres sections restent à faire dans les prochaines étapes.
+    Widget content;
+    if (_selectedIndex == 3) {
+      content = const ComposeScreen();
+    } else if (_selectedIndex == 6) {
+      content = const AccountsScreen();
+    } else {
+      content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
+    }
 
     if (isWide) {
       // Version large écran (Windows) : rail latéral
