@@ -1,11 +1,15 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../models/contact.dart';
 import '../models/email_account.dart';
 import '../models/message_template.dart';
+import '../models/scheduled_email.dart';
 import '../models/signature.dart';
 import '../services/account_storage.dart';
 import '../services/contact_storage.dart';
 import '../services/gmail_send_service.dart';
+import '../services/scheduled_email_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
 
@@ -22,6 +26,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final _templateStorage = TemplateStorage();
   final _signatureStorage = SignatureStorage();
   final _contactStorage = ContactStorage();
+  final _scheduledStorage = ScheduledEmailStorage();
+  final _uuid = const Uuid();
 
   final _toController = TextEditingController();
   final _ccController = TextEditingController();
@@ -35,6 +41,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
   Signature? _selectedSignature;
   List<Contact> _contacts = [];
   final Set<String> _selectedContactIds = {};
+  final List<String> _attachmentPaths = [];
+  DateTime? _scheduledFor;
 
   bool _bulkMode = false;
   bool _loading = true;
@@ -77,11 +85,82 @@ class _ComposeScreenState extends State<ComposeScreen> {
     return text.replaceAll('{{nom}}', contact.name);
   }
 
+  Future<void> _pickAttachments() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null) return;
+    setState(() {
+      for (final file in result.files) {
+        if (file.path != null && !_attachmentPaths.contains(file.path)) {
+          _attachmentPaths.add(file.path!);
+        }
+      }
+    });
+  }
+
+  void _removeAttachment(String path) {
+    setState(() => _attachmentPaths.remove(path));
+  }
+
+  Future<void> _pickScheduleDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(minutes: 5)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 5))),
+    );
+    if (time == null) return;
+    setState(() {
+      _scheduledFor = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  Future<void> _scheduleSingle() async {
+    if (_toController.text.trim().isEmpty || _scheduledFor == null || _selectedAccount == null) {
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      await _scheduledStorage.add(ScheduledEmail(
+        id: _uuid.v4(),
+        accountEmail: _selectedAccount!.email,
+        to: _toController.text.trim(),
+        cc: _ccController.text.trim(),
+        subject: _subjectController.text.trim(),
+        body: _selectedSignature != null
+            ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
+            : _bodyController.text,
+        attachmentPaths: List.of(_attachmentPaths),
+        sendAt: _scheduledFor!,
+      ));
+      setState(() {
+        _statusMessage = 'Envoi programmé pour le '
+            '${_scheduledFor!.day}/${_scheduledFor!.month}/${_scheduledFor!.year} à '
+            '${_scheduledFor!.hour.toString().padLeft(2, '0')}:${_scheduledFor!.minute.toString().padLeft(2, '0')}.';
+        _statusIsError = false;
+        _toController.clear();
+        _ccController.clear();
+        _subjectController.clear();
+        _bodyController.clear();
+        _attachmentPaths.clear();
+        _scheduledFor = null;
+      });
+    } finally {
+      setState(() => _sending = false);
+    }
+  }
+
   Future<void> _send() async {
     if (_selectedAccount == null) return;
 
     if (_bulkMode) {
       await _sendBulk();
+    } else if (_scheduledFor != null) {
+      await _scheduleSingle();
     } else {
       await _sendSingle();
     }
@@ -111,6 +190,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         cc: _ccController.text.trim(),
         subject: _subjectController.text.trim(),
         body: bodyWithSignature,
+        attachmentPaths: List.of(_attachmentPaths),
       );
       setState(() {
         _statusMessage = 'E-mail envoyé avec succès.';
@@ -119,6 +199,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _ccController.clear();
         _subjectController.clear();
         _bodyController.clear();
+        _attachmentPaths.clear();
       });
     } catch (e) {
       setState(() {
@@ -330,6 +411,49 @@ class _ComposeScreenState extends State<ComposeScreen> {
               decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
               maxLines: 10,
             ),
+            const SizedBox(height: 12),
+            if (!_bulkMode) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _pickAttachments,
+                    icon: const Icon(Icons.attach_file),
+                    label: const Text('Joindre un fichier'),
+                  ),
+                  ..._attachmentPaths.map((path) => Chip(
+                        label: Text(path.split('/').last.split('\\').last),
+                        onDeleted: () => _removeAttachment(path),
+                      )),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _pickScheduleDateTime,
+                    icon: const Icon(Icons.schedule),
+                    label: Text(_scheduledFor == null
+                        ? 'Programmer l\'envoi'
+                        : '${_scheduledFor!.day}/${_scheduledFor!.month} à '
+                            '${_scheduledFor!.hour.toString().padLeft(2, '0')}:${_scheduledFor!.minute.toString().padLeft(2, '0')}'),
+                  ),
+                  if (_scheduledFor != null)
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Annuler la programmation',
+                      onPressed: () => setState(() => _scheduledFor = null),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'L\'envoi programmé se déclenche automatiquement tant que l\'application reste ouverte à l\'heure prévue.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+            ],
             const SizedBox(height: 16),
             if (_sending && _bulkMode)
               Padding(
@@ -357,7 +481,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.send),
-              label: Text(_sending ? 'Envoi en cours…' : (_bulkMode ? 'Envoyer à tous' : 'Envoyer')),
+              label: Text(_sending
+                  ? (_scheduledFor != null ? 'Programmation…' : 'Envoi en cours…')
+                  : (_bulkMode
+                      ? 'Envoyer à tous'
+                      : (_scheduledFor != null ? 'Programmer l\'envoi' : 'Envoyer'))),
             ),
           ],
         ),
