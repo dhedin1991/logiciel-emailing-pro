@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/email_account.dart';
+import '../models/message_template.dart';
+import '../models/signature.dart';
 import '../services/account_storage.dart';
 import '../services/gmail_send_service.dart';
+import '../services/template_storage.dart';
+import '../services/signature_storage.dart';
 
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({super.key});
@@ -13,6 +17,8 @@ class ComposeScreen extends StatefulWidget {
 class _ComposeScreenState extends State<ComposeScreen> {
   final _storage = AccountStorage();
   final _sendService = GmailSendService();
+  final _templateStorage = TemplateStorage();
+  final _signatureStorage = SignatureStorage();
 
   final _toController = TextEditingController();
   final _ccController = TextEditingController();
@@ -21,6 +27,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   List<EmailAccount> _accounts = [];
   EmailAccount? _selectedAccount;
+  List<MessageTemplate> _templates = [];
+  List<Signature> _signatures = [];
+  Signature? _selectedSignature;
   bool _loading = true;
   bool _sending = false;
   String? _statusMessage;
@@ -34,10 +43,21 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   Future<void> _loadAccounts() async {
     final accounts = await _storage.loadAccounts();
+    final templates = await _templateStorage.loadTemplates();
+    final signatures = await _signatureStorage.loadSignatures();
     setState(() {
       _accounts = accounts;
       _selectedAccount = accounts.isNotEmpty ? accounts.first : null;
+      _templates = templates;
+      _signatures = signatures;
       _loading = false;
+    });
+  }
+
+  void _applyTemplate(MessageTemplate template) {
+    setState(() {
+      _subjectController.text = template.subject;
+      _bodyController.text = template.body;
     });
   }
 
@@ -57,12 +77,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
     });
 
     try {
+      final bodyWithSignature = _selectedSignature != null
+          ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
+          : _bodyController.text;
       await _sendService.sendEmail(
         account: _selectedAccount!,
         to: _toController.text.trim(),
         cc: _ccController.text.trim(),
         subject: _subjectController.text.trim(),
-        body: _bodyController.text,
+        body: bodyWithSignature,
       );
       setState(() {
         _statusMessage = 'E-mail envoyé avec succès.';
@@ -146,6 +169,36 @@ class _ComposeScreenState extends State<ComposeScreen> {
             TextField(
               controller: _subjectController,
               decoration: const InputDecoration(labelText: 'Objet', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (_templates.isNotEmpty)
+                  Expanded(
+                    child: DropdownButtonFormField<MessageTemplate>(
+                      initialValue: null,
+                      decoration: const InputDecoration(labelText: 'Utiliser un modèle', border: OutlineInputBorder()),
+                      items: _templates
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) _applyTemplate(value);
+                      },
+                    ),
+                  ),
+                if (_templates.isNotEmpty && _signatures.isNotEmpty) const SizedBox(width: 12),
+                if (_signatures.isNotEmpty)
+                  Expanded(
+                    child: DropdownButtonFormField<Signature>(
+                      initialValue: _selectedSignature,
+                      decoration: const InputDecoration(labelText: 'Signature', border: OutlineInputBorder()),
+                      items: _signatures
+                          .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
+                          .toList(),
+                      onChanged: (value) => setState(() => _selectedSignature = value),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
             TextField(
