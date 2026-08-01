@@ -78,8 +78,25 @@ jobs:
           cp /tmp/main_custom.dart lib/main.dart
       - name: Forcer compileSdk 36
         run: |
-          sed -i 's/flutter\.compileSdkVersion/36/' android/app/build.gradle.kts 2>/dev/null || true
-          sed -i 's/flutter\.compileSdkVersion/36/' android/app/build.gradle 2>/dev/null || true
+          echo "--- Recherche du fichier build.gradle ---"
+          find android -name "build.gradle*" -path "*app*"
+          echo "--- Contenu avant modification ---"
+          cat android/app/build.gradle.kts 2>/dev/null || cat android/app/build.gradle
+          python3 - << 'PYEOF'
+          import re, os
+          for path in ["android/app/build.gradle.kts", "android/app/build.gradle"]:
+              if os.path.exists(path):
+                  with open(path) as f:
+                      content = f.read()
+                  new_content = re.sub(r'flutter\.compileSdkVersion', '36', content)
+                  new_content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 36', new_content)
+                  new_content = re.sub(r'compileSdk\s*=\s*\d+', 'compileSdk = 36', new_content)
+                  with open(path, 'w') as f:
+                      f.write(new_content)
+                  print(f"Modifie: {path}")
+          PYEOF
+          echo "--- Contenu apres modification ---"
+          cat android/app/build.gradle.kts 2>/dev/null || cat android/app/build.gradle
       - run: flutter pub get
       - name: Restaurer la clé de signature stable
         run: |
