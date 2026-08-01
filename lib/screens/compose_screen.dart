@@ -12,6 +12,7 @@ import '../services/gmail_send_service.dart';
 import '../services/scheduled_email_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
+import 'message_analysis_dialog.dart';
 
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({super.key});
@@ -410,6 +411,16 @@ class _ComposeScreenState extends State<ComposeScreen> {
               controller: _bodyController,
               decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
               maxLines: 10,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => showMessageAnalysisDialog(
+                context,
+                subject: _subjectController.text,
+                body: _bodyController.text,
+              ),
+              icon: const Icon(Icons.fact_check_outlined),
+              label: const Text('Analyser le message (orthographe, qualité, spam)'),
             ),
             const SizedBox(height: 12),
             if (!_bulkMode) ...[
