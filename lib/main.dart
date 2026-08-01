@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/compose_screen.dart';
 import 'screens/contacts_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/history_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/scheduler_service.dart';
@@ -76,12 +78,16 @@ class _HomeShellState extends State<HomeShell> {
     // Sections déjà construites : Contacts (1), Modèles (2), Rédaction (3), Paramètres (6).
     // Les autres restent à faire dans les prochaines étapes.
     Widget content;
-    if (_selectedIndex == 1) {
+    if (_selectedIndex == 0) {
+      content = const DashboardScreen();
+    } else if (_selectedIndex == 1) {
       content = const ContactsScreen();
     } else if (_selectedIndex == 2) {
       content = const TemplatesScreen();
     } else if (_selectedIndex == 3) {
       content = const ComposeScreen();
+    } else if (_selectedIndex == 4) {
+      content = const HistoryScreen();
     } else if (_selectedIndex == 6) {
       content = const SettingsScreen();
     } else {
