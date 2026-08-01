@@ -1,13 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 import '../models/email_account.dart';
+import '../models/sent_email_log.dart';
 import 'account_storage.dart';
 import 'gmail_auth_service.dart';
+import 'history_storage.dart';
 
 class GmailSendService {
   final _authService = GmailAuthService();
   final _storage = AccountStorage();
+  final _historyStorage = HistoryStorage();
+  final _uuid = const Uuid();
 
   /// Envoie un e-mail avec le compte donné. Renouvelle automatiquement le
   /// jeton d'accès s'il a expiré, et met à jour le compte sauvegardé.
@@ -23,37 +28,59 @@ class GmailSendService {
     List<String> attachmentPaths = const [],
   }) async {
     var currentAccount = account;
-    if (currentAccount.isAccessTokenExpired) {
-      currentAccount = await _authService.refreshAccessToken(currentAccount);
-      await _storage.addOrUpdateAccount(currentAccount);
-    }
+    try {
+      if (currentAccount.isAccessTokenExpired) {
+        currentAccount = await _authService.refreshAccessToken(currentAccount);
+        await _storage.addOrUpdateAccount(currentAccount);
+      }
 
-    final message = attachmentPaths.isEmpty
-        ? _buildSimpleMessage(
-            from: currentAccount.email, to: to, cc: cc, bcc: bcc, subject: subject, body: body)
-        : await _buildMessageWithAttachments(
-            from: currentAccount.email,
-            to: to,
-            cc: cc,
-            bcc: bcc,
-            subject: subject,
-            body: body,
-            attachmentPaths: attachmentPaths,
-          );
+      final message = attachmentPaths.isEmpty
+          ? _buildSimpleMessage(
+              from: currentAccount.email, to: to, cc: cc, bcc: bcc, subject: subject, body: body)
+          : await _buildMessageWithAttachments(
+              from: currentAccount.email,
+              to: to,
+              cc: cc,
+              bcc: bcc,
+              subject: subject,
+              body: body,
+              attachmentPaths: attachmentPaths,
+            );
 
-    final encodedMessage = base64Url.encode(utf8.encode(message)).replaceAll('=', '');
+      final encodedMessage = base64Url.encode(utf8.encode(message)).replaceAll('=', '');
 
-    final response = await http.post(
-      Uri.parse('https://gmail.googleapis.com/gmail/v1/users/me/messages/send'),
-      headers: {
-        'Authorization': 'Bearer ${currentAccount.accessToken}',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'raw': encodedMessage}),
-    );
+      final response = await http.post(
+        Uri.parse('https://gmail.googleapis.com/gmail/v1/users/me/messages/send'),
+        headers: {
+          'Authorization': 'Bearer ${currentAccount.accessToken}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'raw': encodedMessage}),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception("Échec de l'envoi : ${response.body}");
+      if (response.statusCode != 200) {
+        throw Exception("Échec de l'envoi : ${response.body}");
+      }
+
+      await _historyStorage.add(SentEmailLog(
+        id: _uuid.v4(),
+        accountEmail: currentAccount.email,
+        to: to,
+        subject: subject,
+        sentAt: DateTime.now(),
+        success: true,
+      ));
+    } catch (e) {
+      await _historyStorage.add(SentEmailLog(
+        id: _uuid.v4(),
+        accountEmail: currentAccount.email,
+        to: to,
+        subject: subject,
+        sentAt: DateTime.now(),
+        success: false,
+        errorMessage: e.toString(),
+      ));
+      rethrow;
     }
   }
 
