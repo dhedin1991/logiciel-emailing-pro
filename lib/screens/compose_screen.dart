@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -14,6 +15,8 @@ import '../services/email_dispatch_service.dart';
 import '../services/scheduled_email_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
+import '../services/bulk_send_queue_service.dart';
+import 'bulk_send_progress_panel.dart';
 import 'message_analysis_dialog.dart';
 
 class ComposeScreen extends StatefulWidget {
@@ -54,8 +57,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
   bool _sending = false;
   String? _statusMessage;
   bool _statusIsError = false;
-  double _bulkProgress = 0;
-  int _bulkTotal = 0;
+
+  final _minDelayController = TextEditingController(text: '1500');
+  final _maxDelayController = TextEditingController(text: '3000');
+  final _retriesController = TextEditingController(text: '1');
+  bool _randomDelay = true;
 
   @override
   void initState() {
@@ -286,45 +292,38 @@ class _ComposeScreenState extends State<ComposeScreen> {
       return;
     }
 
-    setState(() {
-      _sending = true;
-      _statusMessage = null;
-      _bulkProgress = 0;
-      _bulkTotal = recipients.length;
-    });
+    final minDelay = int.tryParse(_minDelayController.text.trim()) ?? 1500;
+    final maxDelay = _randomDelay ? (int.tryParse(_maxDelayController.text.trim()) ?? minDelay) : minDelay;
+    final retries = int.tryParse(_retriesController.text.trim()) ?? 1;
 
-    var successCount = 0;
-    var failCount = 0;
+    final queue = BulkSendQueueService();
+    queue.configure(contacts: recipients, minDelayMs: minDelay, maxDelayMs: maxDelay, maxRetries: retries);
 
-    for (var i = 0; i < recipients.length; i++) {
-      final contact = recipients[i];
-      try {
-        final personalizedBody = _personalize(_bodyController.text, contact);
-        final personalizedSubject = _personalize(_subjectController.text, contact);
-        final bodyWithSignature = _selectedSignature != null
-            ? '$personalizedBody\n\n${_selectedSignature!.content}'
-            : personalizedBody;
-        await _sendService.sendEmail(
-          account: _selectedAccount!,
-          to: contact.email,
-          subject: personalizedSubject,
-          body: bodyWithSignature,
-        );
-        successCount++;
-      } catch (_) {
-        failCount++;
-      }
-      setState(() => _bulkProgress = (i + 1) / recipients.length);
-      // Petite pause pour rester raisonnable vis-à-vis des limites d'envoi de Google.
-      await Future.delayed(const Duration(milliseconds: 400));
-    }
+    if (!mounted) return;
+    unawaited(showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => BulkSendProgressPanel(queue: queue),
+    ));
 
+    setState(() => _sending = true);
+
+    await queue.start(
+      account: _selectedAccount!,
+      subjectTemplate: _subjectController.text,
+      bodyTemplate: _bodyController.text,
+      signatureGetter: () => _selectedSignature,
+      personalize: (template, name) => template.replaceAll('{{nom}}', name),
+      attachmentPaths: List.of(_attachmentPaths),
+    );
+
+    if (!mounted) return;
     setState(() {
       _sending = false;
-      _statusMessage = '$successCount e-mail(s) envoyé(s)'
-          '${failCount > 0 ? ', $failCount échec(s)' : ''}.';
-      _statusIsError = failCount > 0 && successCount == 0;
-      if (failCount == 0) {
+      _statusMessage = '${queue.sentCount} e-mail(s) envoyé(s)'
+          '${queue.failedCount > 0 ? ', ${queue.failedCount} échec(s)' : ''}.';
+      _statusIsError = queue.failedCount > 0 && queue.sentCount == 0;
+      if (queue.failedCount == 0 && !queue.isCancelled) {
         _selectedContactIds.clear();
         _subjectController.clear();
         _bodyController.clear();
@@ -338,6 +337,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
     _ccController.dispose();
     _subjectController.dispose();
     _bodyController.dispose();
+    _minDelayController.dispose();
+    _maxDelayController.dispose();
+    _retriesController.dispose();
     super.dispose();
   }
 
@@ -435,6 +437,47 @@ class _ComposeScreenState extends State<ComposeScreen> {
               Text(
                 'Astuce : utilisez {{nom}} dans l\'objet ou le message pour insérer automatiquement le nom de chaque contact.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 12),
+              Text('Réglages d\'envoi', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minDelayController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: _randomDelay ? 'Délai minimum (ms)' : 'Délai entre envois (ms)',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  if (_randomDelay) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _maxDelayController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Délai maximum (ms)', border: OutlineInputBorder()),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _retriesController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Tentatives en cas d\'échec', border: OutlineInputBorder()),
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Délai aléatoire (rythme plus naturel)'),
+                value: _randomDelay,
+                onChanged: (value) => setState(() => _randomDelay = value),
               ),
             ] else ...[
               Row(
@@ -555,18 +598,6 @@ class _ComposeScreenState extends State<ComposeScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            if (_sending && _bulkMode)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    LinearProgressIndicator(value: _bulkProgress),
-                    const SizedBox(height: 4),
-                    Text('${(_bulkProgress * _bulkTotal).round()} / $_bulkTotal envoyés'),
-                  ],
-                ),
-              ),
             if (_statusMessage != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
