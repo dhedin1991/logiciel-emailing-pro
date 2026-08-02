@@ -34,6 +34,9 @@ jobs:
           copy main_custom.dart lib\main.dart
           del pubspec_custom.yaml
           del main_custom.dart
+      - name: Appliquer l'icône Windows personnalisée
+        shell: cmd
+        run: copy assets\icon\app_icon.ico windows\runner\resources\app_icon.ico
       - name: Activer le mode développeur Windows
         shell: cmd
         run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
