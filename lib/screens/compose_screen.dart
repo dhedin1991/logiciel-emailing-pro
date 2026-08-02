@@ -237,10 +237,27 @@ class _ComposeScreenState extends State<ComposeScreen> {
     }
   }
 
+  static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  String? _invalidEmailsIn(String rawList) {
+    final addresses = rawList.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
+    final invalid = addresses.where((e) => !_emailRegex.hasMatch(e)).toList();
+    return invalid.isEmpty ? null : invalid.join(', ');
+  }
+
   Future<void> _sendSingle() async {
     if (_toController.text.trim().isEmpty) {
       setState(() {
         _statusMessage = 'Indiquez au moins un destinataire.';
+        _statusIsError = true;
+      });
+      return;
+    }
+
+    final invalid = _invalidEmailsIn(_toController.text);
+    if (invalid != null) {
+      setState(() {
+        _statusMessage = 'Adresse(s) invalide(s) : $invalid';
         _statusIsError = true;
       });
       return;
@@ -290,6 +307,34 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _statusIsError = true;
       });
       return;
+    }
+
+    final invalidEmails = recipients.where((c) => !_emailRegex.hasMatch(c.email)).toList();
+    if (invalidEmails.isNotEmpty) {
+      setState(() {
+        _statusMessage = 'Adresse(s) invalide(s) dans la sélection : ${invalidEmails.map((c) => c.email).join(', ')}';
+        _statusIsError = true;
+      });
+      return;
+    }
+
+    if (_selectedAccount!.provider == 'gmail' && recipients.length > 450) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Limite Gmail'),
+          content: Text(
+            'Gmail limite les comptes gratuits à environ 500 e-mails/jour. '
+            'Vous êtes sur le point d\'en envoyer ${recipients.length}, ce qui peut faire bloquer temporairement votre compte Google. '
+            'Continuer quand même ?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continuer')),
+          ],
+        ),
+      );
+      if (proceed != true) return;
     }
 
     final minDelay = int.tryParse(_minDelayController.text.trim()) ?? 1500;
