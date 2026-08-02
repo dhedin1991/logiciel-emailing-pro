@@ -39,8 +39,6 @@ jobs:
         run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
       - run: flutter pub get
       - run: flutter config --enable-windows-desktop
-      - name: Générer l'icône de l'application
-        run: dart run flutter_launcher_icons
       - name: Compiler Windows
         shell: pwsh
         env:
