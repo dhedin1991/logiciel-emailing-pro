@@ -1,7 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/contact.dart';
 import '../models/contact_list.dart';
+import '../services/contact_import_service.dart';
 import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
 
@@ -15,6 +17,7 @@ class ContactListsScreen extends StatefulWidget {
 class _ContactListsScreenState extends State<ContactListsScreen> {
   final _listStorage = ContactListStorage();
   final _contactStorage = ContactStorage();
+  final _importService = ContactImportService();
   final _uuid = const Uuid();
 
   List<ContactList> _lists = [];
@@ -40,6 +43,8 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
   Future<void> _showEditor({ContactList? existing}) async {
     final nameController = TextEditingController(text: existing?.name ?? '');
     final selectedIds = <String>{...(existing?.contactIds ?? [])};
+    var localContacts = List<Contact>.of(_contacts);
+    String? importStatus;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -50,17 +55,54 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
             width: 450,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nom de la liste (ex : Clients VIP)')),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: ['csv', 'xlsx', 'txt'],
+                    );
+                    final path = result?.files.single.path;
+                    if (path == null) return;
+                    try {
+                      final imported = await _importService.importFromFile(path);
+                      final added = await _contactStorage.addContacts(imported);
+                      localContacts = await _contactStorage.loadContacts();
+                      // Coche automatiquement tous les contacts importés dans cette liste.
+                      for (final c in imported) {
+                        final match = localContacts.firstWhere(
+                          (lc) => lc.email.toLowerCase() == c.email.toLowerCase(),
+                          orElse: () => c,
+                        );
+                        selectedIds.add(match.id);
+                      }
+                      setDialogState(() {
+                        importStatus = '$added nouveau(x) contact(s) importé(s) et ajouté(s) à la liste.';
+                      });
+                    } catch (e) {
+                      setDialogState(() => importStatus = 'Échec de l\'import : ${e.toString()}');
+                    }
+                  },
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Importer un fichier dans cette liste (CSV, Excel, texte)'),
+                ),
+                if (importStatus != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(importStatus!, style: const TextStyle(fontSize: 12)),
+                  ),
                 const SizedBox(height: 12),
-                if (_contacts.isEmpty)
-                  const Text('Ajoutez d\'abord des contacts dans l\'onglet Contacts.')
+                if (localContacts.isEmpty)
+                  const Text('Ajoutez d\'abord des contacts dans l\'onglet Contacts, ou importez un fichier ci-dessus.')
                 else
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 300),
                     child: ListView(
                       shrinkWrap: true,
-                      children: _contacts
+                      children: localContacts
                           .map((c) => CheckboxListTile(
                                 dense: true,
                                 title: Text(c.name),
