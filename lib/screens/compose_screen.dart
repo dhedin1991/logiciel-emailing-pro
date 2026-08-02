@@ -136,6 +136,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _toController.text = existing.isEmpty ? joined : '$existing, $joined';
       });
     }
+  }
 
   void _applyTemplate(MessageTemplate template) {
     setState(() {
