@@ -2,11 +2,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/contact.dart';
+import '../models/contact_list.dart';
 import '../models/email_account.dart';
 import '../models/message_template.dart';
 import '../models/scheduled_email.dart';
 import '../models/signature.dart';
 import '../services/account_storage.dart';
+import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
 import '../services/gmail_send_service.dart';
 import '../services/scheduled_email_storage.dart';
@@ -27,6 +29,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final _templateStorage = TemplateStorage();
   final _signatureStorage = SignatureStorage();
   final _contactStorage = ContactStorage();
+  final _contactListStorage = ContactListStorage();
   final _scheduledStorage = ScheduledEmailStorage();
   final _uuid = const Uuid();
 
@@ -41,6 +44,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   List<Signature> _signatures = [];
   Signature? _selectedSignature;
   List<Contact> _contacts = [];
+  List<ContactList> _contactLists = [];
   final Set<String> _selectedContactIds = {};
   final List<String> _attachmentPaths = [];
   DateTime? _scheduledFor;
@@ -64,15 +68,74 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final templates = await _templateStorage.loadTemplates();
     final signatures = await _signatureStorage.loadSignatures();
     final contacts = await _contactStorage.loadContacts();
+    final contactLists = await _contactListStorage.loadAll();
     setState(() {
       _accounts = accounts;
       _selectedAccount = accounts.isNotEmpty ? accounts.first : null;
       _templates = templates;
       _signatures = signatures;
       _contacts = contacts;
+      _contactLists = contactLists;
       _loading = false;
     });
   }
+
+  void _applyContactList(ContactList list) {
+    setState(() {
+      _selectedContactIds
+        ..clear()
+        ..addAll(list.contactIds);
+    });
+  }
+
+  Future<void> _pickContactsForTo() async {
+    final selected = <String>{};
+    final result = await showDialog<Set<String>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Choisir des contacts'),
+          content: SizedBox(
+            width: 450,
+            child: _contacts.isEmpty
+                ? const Text('Aucun contact. Ajoutez-en dans l\'onglet Contacts.')
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 350),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: _contacts
+                          .map((c) => CheckboxListTile(
+                                dense: true,
+                                title: Text(c.name),
+                                subtitle: Text(c.email),
+                                value: selected.contains(c.email),
+                                onChanged: (checked) => setDialogState(() {
+                                  if (checked == true) {
+                                    selected.add(c.email);
+                                  } else {
+                                    selected.remove(c.email);
+                                  }
+                                }),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, selected), child: const Text('Ajouter')),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final existing = _toController.text.trim();
+      final joined = result.join(', ');
+      setState(() {
+        _toController.text = existing.isEmpty ? joined : '$existing, $joined';
+      });
+    }
 
   void _applyTemplate(MessageTemplate template) {
     setState(() {
@@ -327,6 +390,18 @@ class _ComposeScreenState extends State<ComposeScreen> {
             ),
             const SizedBox(height: 12),
             if (_bulkMode) ...[
+              if (_contactLists.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DropdownButtonFormField<ContactList>(
+                    initialValue: null,
+                    decoration: const InputDecoration(labelText: 'Utiliser une liste prédéfinie', border: OutlineInputBorder()),
+                    items: _contactLists.map((l) => DropdownMenuItem(value: l, child: Text('${l.name} (${l.contactIds.length})'))).toList(),
+                    onChanged: (value) {
+                      if (value != null) _applyContactList(value);
+                    },
+                  ),
+                ),
               Text('Destinataires (${_selectedContactIds.length} sélectionné(s))',
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -361,13 +436,26 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
               ),
             ] else ...[
-              TextField(
-                controller: _toController,
-                decoration: const InputDecoration(
-                  labelText: 'À (destinataire)',
-                  hintText: 'exemple@domaine.com, autre@domaine.com',
-                  border: OutlineInputBorder(),
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _toController,
+                      decoration: const InputDecoration(
+                        labelText: 'À (destinataire)',
+                        hintText: 'exemple@domaine.com, autre@domaine.com',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: _pickContactsForTo,
+                    icon: const Icon(Icons.contacts_outlined),
+                    tooltip: 'Choisir dans les contacts',
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               TextField(
