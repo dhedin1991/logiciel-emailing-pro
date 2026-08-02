@@ -10,7 +10,7 @@ import '../models/signature.dart';
 import '../services/account_storage.dart';
 import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
-import '../services/gmail_send_service.dart';
+import '../services/email_dispatch_service.dart';
 import '../services/scheduled_email_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
@@ -25,7 +25,7 @@ class ComposeScreen extends StatefulWidget {
 
 class _ComposeScreenState extends State<ComposeScreen> {
   final _accountStorage = AccountStorage();
-  final _sendService = GmailSendService();
+  final _sendService = EmailDispatchService();
   final _templateStorage = TemplateStorage();
   final _signatureStorage = SignatureStorage();
   final _contactStorage = ContactStorage();
