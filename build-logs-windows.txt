@@ -1,13 +1,10 @@
-
 Building Windows application...                                 
-CMake Error at CMakeLists.txt:3 (project):
-  Generator
-
-    Visual Studio 16 2019
-
-  could not find any instance of Visual Studio.
-
-
-
-Building Windows application...                                    173ms
-Unable to generate build files
+lib/screens/compose_screen.dart(26,56): error G297C951C: Can't find '}' to match '{'. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+lib/screens/compose_screen.dart(26,7): error G76B49859: The non-abstract class '_ComposeScreenState' is missing implementations for these members: [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+lib/screens/compose_screen.dart(229,13): error G7AA24C43: Local variable '_sendSingle' can't be referenced before it is declared. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+lib/screens/compose_screen.dart(225,13): error G7AA24C43: Local variable '_sendBulk' can't be referenced before it is declared. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+lib/screens/compose_screen.dart(225,13): error GE5CFE876: The method '_sendBulk' isn't defined for the type '_ComposeScreenState'. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+lib/screens/compose_screen.dart(229,13): error GE5CFE876: The method '_sendSingle' isn't defined for the type '_ComposeScreenState'. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(254,5): error MSB8066: Custom build for 'D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\CMakeFiles\e519e8d2c1c08aa5863de0e7469cf919\flutter_windows.dll.rule;D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\CMakeFiles\476b0fb69235dcdde622d743212d2ba3\flutter_assemble.rule;D:\a\logiciel-emailing-pro\logiciel-emailing-pro\windows\flutter\CMakeLists.txt' exited with code 1. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
+Building Windows application...                                    41.2s
+Build process failed.
