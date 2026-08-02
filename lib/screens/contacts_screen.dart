@@ -45,7 +45,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv', 'xlsx'],
+        allowedExtensions: ['csv', 'xlsx', 'txt'],
       );
       if (result == null || result.files.single.path == null) {
         setState(() => _importing = false);
