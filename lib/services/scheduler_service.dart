@@ -1,7 +1,7 @@
 import 'dart:async';
 import '../models/scheduled_email.dart';
 import 'account_storage.dart';
-import 'gmail_send_service.dart';
+import 'email_dispatch_service.dart';
 import 'scheduled_email_storage.dart';
 
 /// Vérifie régulièrement (tant que l'application est ouverte) si des
@@ -13,7 +13,7 @@ import 'scheduled_email_storage.dart';
 class SchedulerService {
   final _storage = ScheduledEmailStorage();
   final _accountStorage = AccountStorage();
-  final _sendService = GmailSendService();
+  final _sendService = EmailDispatchService();
   Timer? _timer;
 
   void start() {
