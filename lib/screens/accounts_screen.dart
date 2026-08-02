@@ -3,6 +3,7 @@ import '../models/email_account.dart';
 import '../services/account_storage.dart';
 import '../services/gmail_auth_service.dart';
 import '../services/smtp_send_service.dart';
+import '../widgets/confirm_delete.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -146,6 +147,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Future<void> _removeAccount(String email) async {
+    if (!await confirmDelete(context, email)) return;
     await _storage.removeAccount(email);
     await _loadAccounts();
   }
