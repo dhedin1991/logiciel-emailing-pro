@@ -12,6 +12,59 @@ void main() {
   runApp(const EmailingProApp());
 }
 
+const _brandColor = Color(0xFF2563EB);
+
+ThemeData _buildTheme(Brightness brightness) {
+  final base = ThemeData(
+    colorSchemeSeed: _brandColor,
+    useMaterial3: true,
+    brightness: brightness,
+  );
+  return base.copyWith(
+    appBarTheme: AppBarTheme(
+      backgroundColor: base.colorScheme.surface,
+      foregroundColor: base.colorScheme.onSurface,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: base.colorScheme.onSurface,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: base.colorScheme.outlineVariant),
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      filled: true,
+      fillColor: base.colorScheme.surfaceContainerLow,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: base.colorScheme.surfaceContainerLow,
+      indicatorColor: base.colorScheme.primaryContainer,
+    ),
+  );
+}
+
 class EmailingProApp extends StatelessWidget {
   const EmailingProApp({super.key});
 
@@ -20,16 +73,8 @@ class EmailingProApp extends StatelessWidget {
     return MaterialApp(
       title: 'Emailing Pro',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF2563EB),
-        useMaterial3: true,
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: const Color(0xFF2563EB),
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
       home: const HomeShell(),
     );
@@ -76,8 +121,6 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width >= 800;
 
-    // Sections déjà construites : Contacts (1), Modèles (2), Rédaction (3), Paramètres (6).
-    // Les autres restent à faire dans les prochaines étapes.
     Widget content;
     if (_selectedIndex == 0) {
       content = const DashboardScreen();
@@ -97,9 +140,12 @@ class _HomeShellState extends State<HomeShell> {
       content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
     }
 
+    final appBar = AppBar(title: Text(_sections[_selectedIndex].label));
+
     if (isWide) {
-      // Version large écran (Windows) : rail latéral
+      // Version large écran (Windows) : rail latéral avec en-tête de marque
       return Scaffold(
+        appBar: appBar,
         body: Row(
           children: [
             NavigationRail(
@@ -109,6 +155,10 @@ class _HomeShellState extends State<HomeShell> {
               labelType: MediaQuery.of(context).size.width >= 1100
                   ? NavigationRailLabelType.none
                   : NavigationRailLabelType.all,
+              leading: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
+              ),
               destinations: _sections
                   .map((s) => NavigationRailDestination(
                         icon: Icon(s.icon),
@@ -126,6 +176,7 @@ class _HomeShellState extends State<HomeShell> {
 
     // Version mobile (Android) : barre de navigation en bas
     return Scaffold(
+      appBar: appBar,
       body: content,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
