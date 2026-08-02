@@ -39,6 +39,8 @@ jobs:
         run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
       - run: flutter pub get
       - run: flutter config --enable-windows-desktop
+      - name: Générer l'icône de l'application
+        run: dart run flutter_launcher_icons
       - name: Compiler Windows
         shell: pwsh
         env:
@@ -104,6 +106,8 @@ jobs:
         run: |
           mkdir -p ~/.android
           echo "${{ secrets.DEBUG_KEYSTORE_B64 }}" | base64 -d > ~/.android/debug.keystore
+      - name: Générer l'icône de l'application
+        run: dart run flutter_launcher_icons
       - name: Compiler Android
         run: |
           set -o pipefail
