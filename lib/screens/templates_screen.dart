@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/message_template.dart';
 import '../services/template_storage.dart';
+import '../widgets/confirm_delete.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
@@ -82,6 +83,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   }
 
   Future<void> _remove(String id) async {
+    final template = _templates.firstWhere((t) => t.id == id);
+    if (!await confirmDelete(context, template.name)) return;
     await _storage.removeTemplate(id);
     await _load();
   }
