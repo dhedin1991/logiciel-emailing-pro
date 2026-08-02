@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/compose_screen.dart';
-import 'screens/contacts_screen.dart';
+import 'screens/contacts_home_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/templates_screen.dart';
@@ -125,7 +125,7 @@ class _HomeShellState extends State<HomeShell> {
     if (_selectedIndex == 0) {
       content = const DashboardScreen();
     } else if (_selectedIndex == 1) {
-      content = const ContactsScreen();
+      content = const ContactsHomeScreen();
     } else if (_selectedIndex == 2) {
       content = const TemplatesScreen();
     } else if (_selectedIndex == 3) {
