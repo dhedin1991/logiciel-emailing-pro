@@ -16,8 +16,41 @@ class ContactImportService {
       return _importFromCsv(path);
     } else if (extension == 'xlsx') {
       return _importFromExcel(path);
+    } else if (extension == 'txt') {
+      return _importFromTxt(path);
     }
-    throw Exception('Format non pris en charge. Utilisez un fichier .csv ou .xlsx.');
+    throw Exception('Format non pris en charge. Utilisez un fichier .csv, .xlsx ou .txt.');
+  }
+
+  /// Lit un fichier texte (bloc-notes) : une entrée par ligne, au format
+  /// "email" seul, ou "Nom, email" / "Nom; email" / "Nom<tab>email".
+  Future<List<Contact>> _importFromTxt(String path) async {
+    final content = await File(path).readAsString();
+    final lines = content.split(RegExp(r'\r?\n')).map((l) => l.trim()).where((l) => l.isNotEmpty);
+
+    final contacts = <Contact>[];
+    for (final line in lines) {
+      final parts = line.split(RegExp(r'[,;\t]')).map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+      if (parts.isEmpty) continue;
+
+      String? email;
+      String? name;
+      for (final part in parts) {
+        if (part.contains('@')) {
+          email = part;
+        } else if (name == null) {
+          name = part;
+        }
+      }
+      if (email == null || !email.contains('@')) continue;
+
+      contacts.add(Contact(
+        id: _uuid.v4(),
+        name: (name == null || name.isEmpty) ? email.split('@').first : name,
+        email: email,
+      ));
+    }
+    return contacts;
   }
 
   Future<List<Contact>> _importFromCsv(String path) async {
