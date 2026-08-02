@@ -6,6 +6,7 @@ import '../models/contact_list.dart';
 import '../services/contact_import_service.dart';
 import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
+import '../widgets/confirm_delete.dart';
 
 class ContactListsScreen extends StatefulWidget {
   const ContactListsScreen({super.key});
@@ -141,6 +142,8 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
   }
 
   Future<void> _remove(String id) async {
+    final list = _lists.firstWhere((l) => l.id == id);
+    if (!await confirmDelete(context, list.name)) return;
     await _listStorage.remove(id);
     await _load();
   }
