@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/signature.dart';
 import '../services/signature_storage.dart';
+import '../widgets/confirm_delete.dart';
 
 class SignaturesScreen extends StatefulWidget {
   const SignaturesScreen({super.key});
@@ -78,6 +79,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
   }
 
   Future<void> _remove(String id) async {
+    final signature = _signatures.firstWhere((s) => s.id == id);
+    if (!await confirmDelete(context, signature.name)) return;
     await _storage.removeSignature(id);
     await _load();
   }
