@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/signature.dart';
 import '../services/signature_storage.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/empty_state.dart';
 
 class SignaturesScreen extends StatefulWidget {
   const SignaturesScreen({super.key});
@@ -107,7 +108,11 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _signatures.isEmpty
-                ? const Center(child: Text('Aucune signature pour le moment.'))
+                ? const EmptyState(
+                    icon: Icons.edit_note,
+                    title: 'Aucune signature pour le moment',
+                    subtitle: 'Créez une ou plusieurs signatures à ajouter à vos messages.',
+                  )
                 : ListView.builder(
                     itemCount: _signatures.length,
                     itemBuilder: (context, index) {
