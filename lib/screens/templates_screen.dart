@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/message_template.dart';
 import '../services/template_storage.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/empty_state.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
@@ -111,7 +112,11 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _templates.isEmpty
-                ? const Center(child: Text('Aucun modèle pour le moment.'))
+                ? const EmptyState(
+                    icon: Icons.description_outlined,
+                    title: 'Aucun modèle pour le moment',
+                    subtitle: 'Créez des messages types réutilisables (relance, devis, bienvenue...).',
+                  )
                 : ListView.builder(
                     itemCount: _templates.length,
                     itemBuilder: (context, index) {
