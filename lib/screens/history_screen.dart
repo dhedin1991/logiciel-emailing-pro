@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/sent_email_log.dart';
 import '../services/history_storage.dart';
+import '../widgets/empty_state.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -46,7 +47,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _entries.isEmpty
-                ? const Center(child: Text('Aucun envoi pour le moment.'))
+                ? const EmptyState(
+                    icon: Icons.history,
+                    title: 'Aucun envoi pour le moment',
+                    subtitle: 'Vos e-mails envoyés apparaîtront ici.',
+                  )
                 : ListView.builder(
                     itemCount: _entries.length,
                     itemBuilder: (context, index) {
