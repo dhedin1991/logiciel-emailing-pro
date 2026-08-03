@@ -4,6 +4,7 @@ import '../services/account_storage.dart';
 import '../services/gmail_auth_service.dart';
 import '../services/smtp_send_service.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/empty_state.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -183,7 +184,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ),
           Expanded(
             child: _accounts.isEmpty
-                ? const Center(child: Text('Aucun compte connecté pour le moment.'))
+                ? const EmptyState(
+                    icon: Icons.alternate_email,
+                    title: 'Aucun compte connecté',
+                    subtitle: 'Connectez un compte Gmail ou un autre fournisseur pour commencer à envoyer.',
+                  )
                 : ListView.builder(
                     itemCount: _accounts.length,
                     itemBuilder: (context, index) {
