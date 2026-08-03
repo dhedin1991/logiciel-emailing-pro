@@ -7,6 +7,7 @@ import '../services/contact_import_service.dart';
 import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/empty_state.dart';
 
 class ContactListsScreen extends StatefulWidget {
   const ContactListsScreen({super.key});
@@ -170,7 +171,11 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _lists.isEmpty
-                ? const Center(child: Text('Aucune liste pour le moment.'))
+                ? const EmptyState(
+                    icon: Icons.list_alt,
+                    title: 'Aucune liste pour le moment',
+                    subtitle: 'Regroupez vos contacts par pays, type de client, etc.',
+                  )
                 : ListView.builder(
                     itemCount: _lists.length,
                     itemBuilder: (context, index) {
