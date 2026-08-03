@@ -5,6 +5,7 @@ import '../models/contact.dart';
 import '../services/contact_import_service.dart';
 import '../services/contact_storage.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/empty_state.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -151,7 +152,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: _contacts.isEmpty
-                ? const Center(child: Text('Aucun contact pour le moment.'))
+                ? const EmptyState(
+                    icon: Icons.people_outline,
+                    title: 'Aucun contact pour le moment',
+                    subtitle: 'Ajoutez un contact ou importez un fichier CSV, Excel ou texte.',
+                  )
                 : ListView.builder(
                     itemCount: _contacts.length,
                     itemBuilder: (context, index) {
