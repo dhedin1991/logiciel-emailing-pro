@@ -78,8 +78,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
               children: [
                 Text(
                   'GMX : utilisez votre mot de passe normal (activez POP/IMAP dans les réglages GMX d\'abord). '
-                  'Yahoo/AOL : utilisez un "mot de passe d\'application" généré dans leurs réglages de sécurité. '
-                  'Zoho : nécessite un plan payant (1\$/mois) pour ce type de connexion. Pas Gmail ni Outlook (bouton dédié).',
+                  'Yahoo/AOL : activez la double authentification puis générez un "mot de passe d\'application" dans leurs réglages de sécurité. '
+                  'Zoho : nécessite un nom de domaine perso (le domaine coûte environ 10€/an, Zoho reste gratuit jusqu\'à 5 adresses) — '
+                  'et il faut activer "Accès IMAP" dans Zoho Mail (Paramètres → Comptes de messagerie → POP/IMAP) avant de connecter ici. '
+                  'Pas Gmail ni Outlook (bouton dédié).',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 12),
