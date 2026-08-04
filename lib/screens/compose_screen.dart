@@ -16,6 +16,7 @@ import '../services/scheduled_email_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
 import '../services/bulk_send_queue_service.dart';
+import '../services/send_jobs_manager.dart';
 import 'bulk_send_progress_panel.dart';
 import 'message_analysis_dialog.dart';
 
@@ -344,35 +345,43 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final queue = BulkSendQueueService();
     queue.configure(contacts: recipients, minDelayMs: minDelay, maxDelayMs: maxDelay, maxRetries: retries);
 
-    if (!mounted) return;
-    unawaited(showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => BulkSendProgressPanel(queue: queue),
+    final account = _selectedAccount!;
+    final subjectTemplate = _subjectController.text;
+    final bodyTemplate = _bodyController.text;
+    final signature = _selectedSignature;
+    final attachments = List.of(_attachmentPaths);
+
+    SendJobsManager.instance.addJob(SendJob(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      label: '${account.email} — ${recipients.length} destinataire(s)',
+      queue: queue,
+      startedAt: DateTime.now(),
     ));
 
-    setState(() => _sending = true);
-
-    await queue.start(
-      account: _selectedAccount!,
-      subjectTemplate: _subjectController.text,
-      bodyTemplate: _bodyController.text,
-      signatureGetter: () => _selectedSignature,
+    // Lancé en arrière-plan : ne bloque pas l'écran, l'utilisateur peut
+    // continuer à utiliser l'application (autre rédaction, autre compte...)
+    // pendant que cette campagne avance, un e-mail à la fois.
+    unawaited(queue.start(
+      account: account,
+      subjectTemplate: subjectTemplate,
+      bodyTemplate: bodyTemplate,
+      signatureGetter: () => signature,
       personalize: (template, name) => template.replaceAll('{{nom}}', name),
-      attachmentPaths: List.of(_attachmentPaths),
-    );
+      attachmentPaths: attachments,
+    ));
 
     if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Envoi lancé en arrière-plan vers ${recipients.length} destinataire(s). '
+          'Vous pouvez continuer à utiliser l\'application — suivez la progression via l\'icône ✉️ en haut.'),
+      duration: const Duration(seconds: 5),
+    ));
+
     setState(() {
-      _sending = false;
-      _statusMessage = '${queue.sentCount} e-mail(s) envoyé(s)'
-          '${queue.failedCount > 0 ? ', ${queue.failedCount} échec(s)' : ''}.';
-      _statusIsError = queue.failedCount > 0 && queue.sentCount == 0;
-      if (queue.failedCount == 0 && !queue.isCancelled) {
-        _selectedContactIds.clear();
-        _subjectController.clear();
-        _bodyController.clear();
-      }
+      _selectedContactIds.clear();
+      _subjectController.clear();
+      _bodyController.clear();
+      _attachmentPaths.clear();
     });
   }
 
