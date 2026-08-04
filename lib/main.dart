@@ -6,7 +6,9 @@ import 'screens/history_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/statistics_screen.dart';
+import 'screens/bulk_send_progress_panel.dart';
 import 'services/scheduler_service.dart';
+import 'services/send_jobs_manager.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -140,7 +142,10 @@ class _HomeShellState extends State<HomeShell> {
       content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
     }
 
-    final appBar = AppBar(title: Text(_sections[_selectedIndex].label));
+    final appBar = AppBar(
+      title: Text(_sections[_selectedIndex].label),
+      actions: const [_SendJobsIndicator(), SizedBox(width: 8)],
+    );
 
     if (isWide) {
       // Version large écran (Windows) : rail latéral avec en-tête de marque
@@ -198,6 +203,84 @@ class _Section {
   final IconData icon;
   final IconData selectedIcon;
   const _Section(this.label, this.icon, this.selectedIcon);
+}
+
+/// Icône dans la barre du haut montrant combien de campagnes d'envoi
+/// tournent actuellement en arrière-plan. Cliquer ouvre la liste, chacune
+/// s'ouvre dans son propre panneau de suivi sans bloquer le reste de l'app.
+class _SendJobsIndicator extends StatefulWidget {
+  const _SendJobsIndicator();
+
+  @override
+  State<_SendJobsIndicator> createState() => _SendJobsIndicatorState();
+}
+
+class _SendJobsIndicatorState extends State<_SendJobsIndicator> {
+  @override
+  void initState() {
+    super.initState();
+    SendJobsManager.instance.addListener(_onChange);
+  }
+
+  @override
+  void dispose() {
+    SendJobsManager.instance.removeListener(_onChange);
+    super.dispose();
+  }
+
+  void _onChange() {
+    if (mounted) setState(() {});
+  }
+
+  void _openJobsList() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        final jobs = SendJobsManager.instance.jobs;
+        if (jobs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('Aucun envoi en cours ou récent.'),
+          );
+        }
+        return ListView(
+          shrinkWrap: true,
+          children: jobs.reversed.map((job) {
+            return ListTile(
+              leading: Icon(job.queue.isRunning ? Icons.sync : Icons.check_circle_outline,
+                  color: job.queue.isRunning ? Colors.blue : Colors.green),
+              title: Text(job.label),
+              subtitle: Text(job.queue.isRunning
+                  ? '${job.queue.sentCount}/${job.queue.totalCount} envoyés'
+                  : 'Terminé : ${job.queue.sentCount} envoyé(s), ${job.queue.failedCount} échec(s)'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) => BulkSendProgressPanel(queue: job.queue),
+                );
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = SendJobsManager.instance.activeCount;
+    return IconButton(
+      tooltip: 'Envois en cours',
+      onPressed: _openJobsList,
+      icon: Badge(
+        label: Text('$count'),
+        isLabelVisible: count > 0,
+        child: const Icon(Icons.mark_email_read_outlined),
+      ),
+    );
+  }
 }
 
 class _PlaceholderScreen extends StatelessWidget {
