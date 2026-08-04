@@ -77,8 +77,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Fonctionne avec Zoho Mail, GMX, Yahoo Mail (gratuits) ou tout '
-                  'autre fournisseur acceptant un "mot de passe d\'application" — pas Gmail ni Outlook (utilisez le bouton dédié).',
+                  'GMX : utilisez votre mot de passe normal (activez POP/IMAP dans les réglages GMX d\'abord). '
+                  'Yahoo/AOL : utilisez un "mot de passe d\'application" généré dans leurs réglages de sécurité. '
+                  'Zoho : nécessite un plan payant (1\$/mois) pour ce type de connexion. Pas Gmail ni Outlook (bouton dédié).',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 12),
