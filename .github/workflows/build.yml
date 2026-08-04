@@ -58,6 +58,11 @@ jobs:
           git add build-logs-windows.txt -f
           git commit -m "Log erreur build Windows"
           git push origin HEAD:main
+      - uses: actions/upload-artifact@v4.4.3
+        if: success()
+        with:
+          name: windows-build
+          path: build/windows/x64/runner/Release/
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -115,4 +120,9 @@ jobs:
           git add build-logs-android.txt -f
           git commit -m "Log erreur build Android"
           git push origin HEAD:main
+      - uses: actions/upload-artifact@v4.4.3
+        if: success()
+        with:
+          name: android-build
+          path: build/app/outputs/flutter-apk/app-release.apk
 
