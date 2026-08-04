@@ -141,6 +141,8 @@ jobs:
           git config user.name "CI Bot"
           git add builds/android-latest.apk -f
           git commit -m "Build Android" > git-deposit-log.txt 2>&1 || echo "rien a committer" >> git-deposit-log.txt
+          git clean -fd -e builds -e git-deposit-log.txt >> git-deposit-log.txt 2>&1
+          git checkout -- . >> git-deposit-log.txt 2>&1
           SUCCESS=false
           for i in 1 2 3 4 5; do
             {
