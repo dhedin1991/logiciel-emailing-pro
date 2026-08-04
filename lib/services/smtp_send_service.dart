@@ -15,9 +15,10 @@ class SmtpPreset {
 }
 
 const smtpPresets = [
-  SmtpPreset('Zoho Mail', 'smtp.zoho.com', 465),
-  SmtpPreset('GMX', 'mail.gmx.com', 587),
-  SmtpPreset('Yahoo Mail', 'smtp.mail.yahoo.com', 465),
+  SmtpPreset('GMX (gratuit — mot de passe normal)', 'mail.gmx.com', 587),
+  SmtpPreset('Yahoo Mail (gratuit — mot de passe d\'application)', 'smtp.mail.yahoo.com', 465),
+  SmtpPreset('AOL Mail (gratuit — mot de passe d\'application)', 'smtp.aol.com', 587),
+  SmtpPreset('Zoho Mail (nécessite un plan payant, 1\$/mois)', 'smtp.zoho.com', 465),
   SmtpPreset('Autre (personnalisé)', '', 587),
 ];
 
