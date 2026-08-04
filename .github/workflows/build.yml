@@ -58,23 +58,23 @@ jobs:
           git add build-logs-windows.txt -f
           git commit -m "Log erreur build Windows"
           git push origin HEAD:main
-      - name: Deposer le build Windows dans le depot
+      - name: Deposer le build Windows dans le depot (API, sans conflit)
         if: success()
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path builds | Out-Null
           Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath builds/windows-latest.zip -Force
-          git config user.email "ci-bot@local"
-          git config user.name "CI Bot"
-          git add builds/windows-latest.zip -f
-          git commit -m "Build Windows" 2>$null
-          for ($i=0; $i -lt 3; $i++) {
-            git fetch origin main
-            git rebase origin/main
-            git push origin HEAD:main
-            if ($LASTEXITCODE -eq 0) { break }
-            Start-Sleep -Seconds 5
-          }
+          $content = [Convert]::ToBase64String([IO.File]::ReadAllBytes("builds/windows-latest.zip"))
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
+          $repo = "$env:GITHUB_REPOSITORY"
+          $uri = "https://api.github.com/repos/$repo/contents/builds/windows-latest.zip"
+          $sha = $null
+          try { $existing = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get; $sha = $existing.sha } catch {}
+          $body = @{ message = "Build Windows"; content = $content }
+          if ($sha) { $body.sha = $sha }
+          Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body ($body | ConvertTo-Json) -ContentType "application/json"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -132,18 +132,24 @@ jobs:
           git add build-logs-android.txt -f
           git commit -m "Log erreur build Android"
           git push origin HEAD:main
-      - name: Deposer l'APK Android dans le depot
+      - name: Deposer l'APK Android dans le depot (API, sans conflit)
         if: success()
         run: |
           mkdir -p builds
           cp build/app/outputs/flutter-apk/app-release.apk builds/android-latest.apk
-          git config user.email "ci-bot@local"
-          git config user.name "CI Bot"
-          git add builds/android-latest.apk -f
-          git commit -m "Build Android" || true
-          for i in 1 2 3; do
-            git fetch origin main
-            git rebase origin/main && git push origin HEAD:main && break
-            sleep 5
-          done
+          CONTENT=$(base64 -w0 builds/android-latest.apk)
+          URI="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/builds/android-latest.apk"
+          SHA=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$URI" | python3 -c "import json,sys
+try:
+    print(json.load(sys.stdin)['sha'])
+except Exception:
+    print('')")
+          if [ -n "$SHA" ]; then
+            BODY=$(python3 -c "import json; print(json.dumps({'message':'Build Android','content':open('/dev/stdin').read().strip(),'sha':'$SHA'}))" <<< "$CONTENT")
+          else
+            BODY=$(python3 -c "import json; print(json.dumps({'message':'Build Android','content':open('/dev/stdin').read().strip()}))" <<< "$CONTENT")
+          fi
+          curl -s -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$URI" -d "$BODY" -o /dev/null -w "HTTP %{http_code}\n"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
