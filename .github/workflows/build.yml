@@ -132,74 +132,32 @@ jobs:
           git add build-logs-android.txt -f
           git commit -m "Log erreur build Android"
           git push origin HEAD:main
-      - name: Deposer l'APK Android dans le depot (API, sans conflit)
+      - name: Deposer l'APK Android dans le depot (git, avec tentatives)
         if: success()
         run: |
           mkdir -p builds
           cp build/app/outputs/flutter-apk/app-release.apk builds/android-latest.apk
-          python3 - << 'PYEOF' > deposit-log.txt 2>&1 || true
-          import base64, json, os, urllib.request
-
-          repo = os.environ["GITHUB_REPOSITORY"]
-          token = os.environ["GITHUB_TOKEN"]
-          path = "builds/android-latest.apk"
-          uri = f"https://api.github.com/repos/{repo}/contents/{path}"
-          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-
-          with open(path, "rb") as f:
-              content_b64 = base64.b64encode(f.read()).decode()
-          print("Taille base64:", len(content_b64))
-
-          sha = None
-          req = urllib.request.Request(uri, headers=headers)
-          try:
-              with urllib.request.urlopen(req) as resp:
-                  sha = json.load(resp).get("sha")
-                  print("SHA existant:", sha)
-          except Exception as e:
-              print("Pas de fichier existant ou erreur GET:", repr(e))
-
-          body = {"message": "Build Android", "content": content_b64}
-          if sha:
-              body["sha"] = sha
-
-          put_req = urllib.request.Request(
-              uri, data=json.dumps(body).encode(), headers=headers, method="PUT"
-          )
-          try:
-              with urllib.request.urlopen(put_req) as resp:
-                  print("HTTP", resp.status)
-          except Exception as e:
-              print("ERREUR PUT:", repr(e))
-              if hasattr(e, "read"):
-                  print(e.read().decode(errors="replace"))
-          PYEOF
-          cat deposit-log.txt
-          if grep -q "ERREUR" deposit-log.txt; then
-            python3 - << 'PYEOF2'
-          import base64, json, os, urllib.request
-          repo = os.environ["GITHUB_REPOSITORY"]
-          token = os.environ["GITHUB_TOKEN"]
-          uri = f"https://api.github.com/repos/{repo}/contents/deposit-android-error.txt"
-          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
-          with open("deposit-log.txt", "rb") as f:
-              content_b64 = base64.b64encode(f.read()).decode()
-          sha = None
-          try:
-              req = urllib.request.Request(uri, headers=headers)
-              with urllib.request.urlopen(req) as resp:
-                  sha = json.load(resp).get("sha")
-          except Exception:
-              pass
-          body = {"message": "Log erreur depot Android", "content": content_b64}
-          if sha:
-              body["sha"] = sha
-          put_req = urllib.request.Request(uri, data=json.dumps(body).encode(), headers=headers, method="PUT")
-          with urllib.request.urlopen(put_req) as resp:
-              print(resp.status)
-          PYEOF2
+          git config user.email "ci-bot@local"
+          git config user.name "CI Bot"
+          git add builds/android-latest.apk -f
+          git commit -m "Build Android" || echo "rien a committer"
+          SUCCESS=false
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                SUCCESS=true
+                break
+              fi
+            else
+              git rebase --abort || true
+            fi
+            sleep $((RANDOM % 8 + 4))
+          done
+          echo "--- git log apres tentatives ---"
+          git log --oneline -5
+          if [ "$SUCCESS" = false ]; then
+            echo "Echec du depot Android apres plusieurs tentatives"
             exit 1
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
