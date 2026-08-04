@@ -67,10 +67,14 @@ jobs:
           git config user.email "ci-bot@local"
           git config user.name "CI Bot"
           git add builds/windows-latest.zip -f
-          git commit -m "Build Windows"
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
+          git commit -m "Build Windows" 2>$null
+          for ($i=0; $i -lt 3; $i++) {
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds 5
+          }
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -136,8 +140,10 @@ jobs:
           git config user.email "ci-bot@local"
           git config user.name "CI Bot"
           git add builds/android-latest.apk -f
-          git commit -m "Build Android"
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
+          git commit -m "Build Android" || true
+          for i in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main && git push origin HEAD:main && break
+            sleep 5
+          done
 
