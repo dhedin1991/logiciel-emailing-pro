@@ -137,19 +137,40 @@ jobs:
         run: |
           mkdir -p builds
           cp build/app/outputs/flutter-apk/app-release.apk builds/android-latest.apk
-          CONTENT=$(base64 -w0 builds/android-latest.apk)
-          URI="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/builds/android-latest.apk"
-          SHA=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$URI" | python3 -c "import json,sys
-try:
-    print(json.load(sys.stdin)['sha'])
-except Exception:
-    print('')")
-          if [ -n "$SHA" ]; then
-            BODY=$(python3 -c "import json; print(json.dumps({'message':'Build Android','content':open('/dev/stdin').read().strip(),'sha':'$SHA'}))" <<< "$CONTENT")
-          else
-            BODY=$(python3 -c "import json; print(json.dumps({'message':'Build Android','content':open('/dev/stdin').read().strip()}))" <<< "$CONTENT")
-          fi
-          curl -s -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$URI" -d "$BODY" -o /dev/null -w "HTTP %{http_code}\n"
+          python3 - << 'PYEOF'
+          import base64, json, os, urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          path = "builds/android-latest.apk"
+          uri = f"https://api.github.com/repos/{repo}/contents/{path}"
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+
+          with open(path, "rb") as f:
+              content_b64 = base64.b64encode(f.read()).decode()
+
+          sha = None
+          req = urllib.request.Request(uri, headers=headers)
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  sha = json.load(resp).get("sha")
+          except Exception:
+              pass
+
+          body = {"message": "Build Android", "content": content_b64}
+          if sha:
+              body["sha"] = sha
+
+          put_req = urllib.request.Request(
+              uri, data=json.dumps(body).encode(), headers=headers, method="PUT"
+          )
+          try:
+              with urllib.request.urlopen(put_req) as resp:
+                  print("HTTP", resp.status)
+          except Exception as e:
+              print("ERREUR:", e)
+              raise
+          PYEOF
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
