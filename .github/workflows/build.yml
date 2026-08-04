@@ -137,7 +137,7 @@ jobs:
         run: |
           mkdir -p builds
           cp build/app/outputs/flutter-apk/app-release.apk builds/android-latest.apk
-          python3 - << 'PYEOF'
+          python3 - << 'PYEOF' > deposit-log.txt 2>&1 || true
           import base64, json, os, urllib.request
 
           repo = os.environ["GITHUB_REPOSITORY"]
@@ -148,14 +148,16 @@ jobs:
 
           with open(path, "rb") as f:
               content_b64 = base64.b64encode(f.read()).decode()
+          print("Taille base64:", len(content_b64))
 
           sha = None
           req = urllib.request.Request(uri, headers=headers)
           try:
               with urllib.request.urlopen(req) as resp:
                   sha = json.load(resp).get("sha")
-          except Exception:
-              pass
+                  print("SHA existant:", sha)
+          except Exception as e:
+              print("Pas de fichier existant ou erreur GET:", repr(e))
 
           body = {"message": "Build Android", "content": content_b64}
           if sha:
@@ -168,9 +170,36 @@ jobs:
               with urllib.request.urlopen(put_req) as resp:
                   print("HTTP", resp.status)
           except Exception as e:
-              print("ERREUR:", e)
-              raise
+              print("ERREUR PUT:", repr(e))
+              if hasattr(e, "read"):
+                  print(e.read().decode(errors="replace"))
           PYEOF
+          cat deposit-log.txt
+          if grep -q "ERREUR" deposit-log.txt; then
+            python3 - << 'PYEOF2'
+          import base64, json, os, urllib.request
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          uri = f"https://api.github.com/repos/{repo}/contents/deposit-android-error.txt"
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+          with open("deposit-log.txt", "rb") as f:
+              content_b64 = base64.b64encode(f.read()).decode()
+          sha = None
+          try:
+              req = urllib.request.Request(uri, headers=headers)
+              with urllib.request.urlopen(req) as resp:
+                  sha = json.load(resp).get("sha")
+          except Exception:
+              pass
+          body = {"message": "Log erreur depot Android", "content": content_b64}
+          if sha:
+              body["sha"] = sha
+          put_req = urllib.request.Request(uri, data=json.dumps(body).encode(), headers=headers, method="PUT")
+          with urllib.request.urlopen(put_req) as resp:
+              print(resp.status)
+          PYEOF2
+            exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
