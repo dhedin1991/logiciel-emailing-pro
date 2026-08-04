@@ -58,11 +58,19 @@ jobs:
           git add build-logs-windows.txt -f
           git commit -m "Log erreur build Windows"
           git push origin HEAD:main
-      - uses: actions/upload-artifact@v4.4.3
+      - name: Deposer le build Windows dans le depot
         if: success()
-        with:
-          name: windows-build
-          path: build/windows/x64/runner/Release/
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path builds | Out-Null
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath builds/windows-latest.zip -Force
+          git config user.email "ci-bot@local"
+          git config user.name "CI Bot"
+          git add builds/windows-latest.zip -f
+          git commit -m "Build Windows"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -120,9 +128,16 @@ jobs:
           git add build-logs-android.txt -f
           git commit -m "Log erreur build Android"
           git push origin HEAD:main
-      - uses: actions/upload-artifact@v4.4.3
+      - name: Deposer l'APK Android dans le depot
         if: success()
-        with:
-          name: android-build
-          path: build/app/outputs/flutter-apk/app-release.apk
+        run: |
+          mkdir -p builds
+          cp build/app/outputs/flutter-apk/app-release.apk builds/android-latest.apk
+          git config user.email "ci-bot@local"
+          git config user.name "CI Bot"
+          git add builds/android-latest.apk -f
+          git commit -m "Build Android"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
 
