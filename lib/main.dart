@@ -179,21 +179,55 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
-    // Version mobile (Android) : barre de navigation en bas
+    // Version mobile (Android) : menu tiroir latéral au lieu d'une barre du bas surchargée
     return Scaffold(
       appBar: appBar,
-      body: content,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        destinations: _sections
-            .map((s) => NavigationDestination(
-                  icon: Icon(s.icon),
-                  selectedIcon: Icon(s.selectedIcon),
-                  label: s.label,
-                ))
-            .toList(),
+      drawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
+                    const SizedBox(width: 12),
+                    Text('Emailing Pro', style: Theme.of(context).textTheme.titleLarge),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: List.generate(_sections.length, (i) {
+                    final section = _sections[i];
+                    final selected = i == _selectedIndex;
+                    return ListTile(
+                      leading: Icon(selected ? section.selectedIcon : section.icon,
+                          color: selected ? Theme.of(context).colorScheme.primary : null),
+                      title: Text(
+                        section.label,
+                        style: TextStyle(
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                          color: selected ? Theme.of(context).colorScheme.primary : null,
+                        ),
+                      ),
+                      selected: selected,
+                      onTap: () {
+                        setState(() => _selectedIndex = i);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
+      body: content,
     );
   }
 }
