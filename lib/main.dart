@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/compose_screen.dart';
 import 'screens/contacts_home_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -22,14 +23,16 @@ ThemeData _buildTheme(Brightness brightness) {
     useMaterial3: true,
     brightness: brightness,
   );
+  final textTheme = GoogleFonts.interTextTheme(base.textTheme);
   return base.copyWith(
+    textTheme: textTheme,
     appBarTheme: AppBarTheme(
       backgroundColor: base.colorScheme.surface,
       foregroundColor: base.colorScheme.onSurface,
       elevation: 0,
       scrolledUnderElevation: 1,
       centerTitle: false,
-      titleTextStyle: TextStyle(
+      titleTextStyle: GoogleFonts.inter(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: base.colorScheme.onSurface,
