@@ -56,6 +56,33 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
+  Future<void> _reconnectAccount(String email) async {
+    setState(() {
+      _connecting = true;
+      _errorMessage = null;
+    });
+    try {
+      final account = await _gmailAuth.connectAccount();
+      if (account.email != email) {
+        setState(() {
+          _errorMessage =
+              'Vous vous êtes connecté(e) avec ${account.email} au lieu de $email — reconnectez-vous avec le même compte Google.';
+        });
+      } else {
+        await _storage.addOrUpdateAccount(account);
+        await _loadAccounts();
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Reconnexion impossible : ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _connecting = false;
+      });
+    }
+  }
+
   Future<void> _showSmtpDialog() async {
     var selectedPreset = smtpPresets.first;
     final hostController = TextEditingController(text: selectedPreset.host);
@@ -201,9 +228,20 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           leading: const Icon(Icons.mail_outline),
                           title: Text(account.email),
                           subtitle: Text(_providerLabel(account.provider)),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _removeAccount(account.email),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (account.provider == 'gmail')
+                                TextButton.icon(
+                                  onPressed: _connecting ? null : () => _reconnectAccount(account.email),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Reconnecter'),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _removeAccount(account.email),
+                              ),
+                            ],
                           ),
                         ),
                       );
