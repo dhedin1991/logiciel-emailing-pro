@@ -7,6 +7,18 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../models/email_account.dart';
 
+/// Levée quand Google a révoqué/expiré la connexion d'un compte et qu'il
+/// faut le reconnecter manuellement (ex : app encore en mode "Test",
+/// connexion valable 7 jours seulement).
+class GmailReauthRequiredException implements Exception {
+  final String email;
+  GmailReauthRequiredException(this.email);
+
+  @override
+  String toString() =>
+      'La connexion à $email a expiré. Reconnectez ce compte dans Paramètres > Comptes.';
+}
+
 /// Gère la connexion OAuth d'un compte Gmail.
 ///
 /// Fonctionne de la même façon sur Windows et sur Android : on ouvre le
@@ -124,6 +136,9 @@ class GmailAuthService {
 
   /// Renouvelle le jeton d'accès d'un compte à partir de son jeton de
   /// renouvellement (appelé automatiquement quand le jeton a expiré).
+  /// Lève [GmailReauthRequiredException] si Google a révoqué/expiré la
+  /// connexion (cas fréquent tant que l'app Google reste en mode "Test" :
+  /// la connexion expire automatiquement au bout de 7 jours).
   Future<EmailAccount> refreshAccessToken(EmailAccount account) async {
     final response = await http.post(
       Uri.parse(_tokenEndpoint),
@@ -136,6 +151,9 @@ class GmailAuthService {
     );
 
     if (response.statusCode != 200) {
+      if (response.body.contains('invalid_grant')) {
+        throw GmailReauthRequiredException(account.email);
+      }
       throw Exception('Échec du renouvellement de connexion : ${response.body}');
     }
 
