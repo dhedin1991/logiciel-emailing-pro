@@ -1,63 +1,104 @@
-[main 06dcdff] Build Android
+[main 05fe4a6] Build Android
  1 file changed, 0 insertions(+), 0 deletions(-)
- create mode 100644 builds/android-latest.apk
+Removing .metadata
+Removing analysis_options.yaml
+Removing android/.gitignore
+Removing android/.kotlin/
+Removing android/app/build.gradle.kts
+Removing android/app/src/debug/
+Removing android/app/src/main/AndroidManifest.xml
+Removing android/app/src/main/kotlin/
+Removing android/app/src/main/res/
+Removing android/app/src/profile/
+Removing android/build.gradle.kts
+Removing android/gradle.properties
+Removing android/gradle/wrapper/gradle-wrapper.properties
+Removing android/settings.gradle.kts
+Removing pubspec.lock
+Removing test/
 === tentative 1 ===
-From https://github.com/dhedin1991/logiciel-emailing-pro
+From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-   fd44254..52a7f9b  main       -> origin/main
-error: cannot rebase: You have unstaged changes.
-error: Please commit or stash them.
-REBASE ECHOUE
-fatal: no rebase in progress
+   79dfeb0..2e4e569  main       -> origin/main
+Rebasing (1/1)Successfully rebased and updated refs/heads/main.
+remote: warning: See https://gh.io/lfs for more information.        
+remote: warning: File builds/android-latest.apk is 54.72 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        
+remote: warning: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        
+To https://github.com/renardc427-ops/logiciel-emailing-pro
+ ! [remote rejected] HEAD -> main (cannot lock ref 'refs/heads/main': is at df62ccb8a3e081136d4f300170b3e4e4aa9eb76d but expected 2e4e5690c7dc40661264d69450e2f383d1d7dcd4)
+error: failed to push some refs to 'https://github.com/renardc427-ops/logiciel-emailing-pro'
+PUSH ECHOUE
 === tentative 2 ===
-From https://github.com/dhedin1991/logiciel-emailing-pro
+From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-error: cannot rebase: You have unstaged changes.
-error: Please commit or stash them.
+   2e4e569..df62ccb  main       -> origin/main
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+Auto-merging builds/android-latest.apk
+CONFLICT (content): Merge conflict in builds/android-latest.apk
+error: could not apply 91e6a22... Build Android
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 91e6a22... # Build Android
 REBASE ECHOUE
-fatal: no rebase in progress
 === tentative 3 ===
-From https://github.com/dhedin1991/logiciel-emailing-pro
+From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-error: cannot rebase: You have unstaged changes.
-error: Please commit or stash them.
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+Auto-merging builds/android-latest.apk
+CONFLICT (content): Merge conflict in builds/android-latest.apk
+error: could not apply 91e6a22... Build Android
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 91e6a22... # Build Android
 REBASE ECHOUE
-fatal: no rebase in progress
 === tentative 4 ===
-From https://github.com/dhedin1991/logiciel-emailing-pro
+From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-error: cannot rebase: You have unstaged changes.
-error: Please commit or stash them.
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+Auto-merging builds/android-latest.apk
+CONFLICT (content): Merge conflict in builds/android-latest.apk
+error: could not apply 91e6a22... Build Android
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 91e6a22... # Build Android
 REBASE ECHOUE
-fatal: no rebase in progress
 === tentative 5 ===
-From https://github.com/dhedin1991/logiciel-emailing-pro
+From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-error: cannot rebase: You have unstaged changes.
-error: Please commit or stash them.
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+Auto-merging builds/android-latest.apk
+CONFLICT (content): Merge conflict in builds/android-latest.apk
+error: could not apply 91e6a22... Build Android
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 91e6a22... # Build Android
 REBASE ECHOUE
-fatal: no rebase in progress
 === git log final ===
-06dcdff Build Android
-fd44254 Capturer le vrai log d erreur git pour Android
+91e6a22 Build Android
+2e4e569 Build Windows
+4760a79 Build Windows
+79dfeb0 Fix: detecter expiration Gmail (mode Test) + bouton Reconnecter - lib/screens/accounts_screen.dart
 === git status ===
 On branch main
 Your branch and 'origin/main' have diverged,
 and have 1 and 1 different commits each, respectively.
   (use "git pull" if you want to integrate the remote branch with yours)
 
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   build-logs-android.txt
-
 Untracked files:
   (use "git add <file>..." to include in what will be committed)
-	.metadata
-	analysis_options.yaml
 	android/
 	git-deposit-log.txt
-	pubspec.lock
-	test/
 
-no changes added to commit (use "git add" and/or "git commit -a")
+nothing added to commit but untracked files present (use "git add" to track)
