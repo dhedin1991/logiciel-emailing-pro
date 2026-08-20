@@ -9,11 +9,28 @@ class AppAuthService {
   static const _usernameKey = 'app_lock_username';
   static const _passwordHashKey = 'app_lock_password_hash';
   static const _saltKey = 'app_lock_salt';
+  static const _sessionKey = 'app_lock_session_active';
   final _storage = const FlutterSecureStorage();
 
   Future<bool> hasCredentials() async {
     final username = await _storage.read(key: _usernameKey);
     return username != null && username.isNotEmpty;
+  }
+
+  /// Vrai si l'utilisateur est déjà resté connecté lors d'une session
+  /// précédente : permet de ne pas redemander le mot de passe à chaque
+  /// ouverture du logiciel.
+  Future<bool> isSessionActive() async {
+    final value = await _storage.read(key: _sessionKey);
+    return value == 'true';
+  }
+
+  Future<void> setSessionActive(bool active) async {
+    if (active) {
+      await _storage.write(key: _sessionKey, value: 'true');
+    } else {
+      await _storage.delete(key: _sessionKey);
+    }
   }
 
   Future<void> setCredentials(String username, String password) async {
@@ -37,6 +54,7 @@ class AppAuthService {
     await _storage.delete(key: _usernameKey);
     await _storage.delete(key: _passwordHashKey);
     await _storage.delete(key: _saltKey);
+    await _storage.delete(key: _sessionKey);
   }
 
   String _hash(String password, String salt) {
