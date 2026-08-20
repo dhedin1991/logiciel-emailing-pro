@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'accounts_screen.dart';
 import 'signatures_screen.dart';
 import 'sync_screen.dart';
+import 'security_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -9,7 +10,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           const TabBar(
@@ -17,6 +18,7 @@ class SettingsScreen extends StatelessWidget {
               Tab(text: 'Comptes'),
               Tab(text: 'Signatures'),
               Tab(text: 'Synchronisation'),
+              Tab(text: 'Sécurité'),
             ],
           ),
           const Expanded(
@@ -25,6 +27,7 @@ class SettingsScreen extends StatelessWidget {
                 AccountsScreen(),
                 SignaturesScreen(),
                 SyncScreen(),
+                SecurityScreen(),
               ],
             ),
           ),
