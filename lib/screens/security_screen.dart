@@ -41,6 +41,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
     });
   }
 
+  Future<void> _logout() async {
+    await _authService.setSessionActive(false);
+    if (mounted) {
+      setState(() {
+        _statusMessage = 'Déconnecté(e). Le mot de passe sera redemandé au prochain démarrage.';
+        _statusIsError = false;
+      });
+    }
+  }
+
   Future<void> _removeLock() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -103,6 +113,11 @@ class _SecurityScreenState extends State<SecurityScreen> {
               const SizedBox(height: 16),
               FilledButton(onPressed: _updateCredentials, child: const Text('Mettre à jour')),
               const SizedBox(height: 24),
+              OutlinedButton(
+                onPressed: _logout,
+                child: const Text('Se déconnecter (redemander le mot de passe au prochain démarrage)'),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _removeLock,
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
