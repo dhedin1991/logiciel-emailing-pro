@@ -132,45 +132,37 @@ jobs:
           git add build-logs-android.txt -f
           git commit -m "Log erreur build Android"
           git push origin HEAD:main
-      - name: Deposer l'APK Android dans le depot (git, avec tentatives)
+      - name: Deposer l'APK Android dans le depot (le nouveau fichier gagne toujours)
         if: success()
         run: |
-          mkdir -p builds
-          cp build/app/outputs/flutter-apk/app-release.apk builds/android-latest.apk
+          cp build/app/outputs/flutter-apk/app-release.apk /tmp/app-release.apk
           git config user.email "ci-bot@local"
           git config user.name "CI Bot"
-          git add builds/android-latest.apk -f
-          git commit -m "Build Android" > git-deposit-log.txt 2>&1 || echo "rien a committer" >> git-deposit-log.txt
-          git clean -fd -e builds -e git-deposit-log.txt >> git-deposit-log.txt 2>&1
-          git checkout -- . >> git-deposit-log.txt 2>&1
           SUCCESS=false
           for i in 1 2 3 4 5; do
             {
               echo "=== tentative $i ==="
               git fetch origin main
-              if git rebase origin/main; then
-                if git push origin HEAD:main; then
-                  echo "PUSH REUSSI"
-                else
-                  echo "PUSH ECHOUE"
-                fi
+              git reset --hard origin/main
+              mkdir -p builds
+              cp /tmp/app-release.apk builds/android-latest.apk
+              git add builds/android-latest.apk -f
+              git commit -m "Build Android" || echo "rien a committer"
+              if git push origin HEAD:main; then
+                echo "PUSH REUSSI"
               else
-                echo "REBASE ECHOUE"
-                git rebase --abort || true
+                echo "PUSH ECHOUE"
               fi
-            } >> git-deposit-log.txt 2>&1
+            } > git-deposit-log.txt 2>&1
+            cat git-deposit-log.txt
             if grep -q "PUSH REUSSI" git-deposit-log.txt; then
               SUCCESS=true
               break
             fi
             sleep $((RANDOM % 8 + 4))
           done
-          echo "=== git log final ===" >> git-deposit-log.txt
-          git log --oneline -5 >> git-deposit-log.txt 2>&1
-          echo "=== git status ===" >> git-deposit-log.txt
-          git status >> git-deposit-log.txt 2>&1
           if [ "$SUCCESS" = false ]; then
-            python3 - << 'PYEOF'
+            python3 - << 'PYEOF2'
           import base64, json, os, urllib.request
           repo = os.environ["GITHUB_REPOSITORY"]
           token = os.environ["GITHUB_TOKEN"]
@@ -191,7 +183,7 @@ jobs:
           put_req = urllib.request.Request(uri, data=json.dumps(body).encode(), headers=headers, method="PUT")
           with urllib.request.urlopen(put_req) as resp:
               print(resp.status)
-          PYEOF
+          PYEOF2
             exit 1
           fi
         env:
