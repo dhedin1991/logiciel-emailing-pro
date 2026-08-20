@@ -28,8 +28,10 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
 
   Future<void> _check() async {
     final has = await _authService.hasCredentials();
+    final sessionActive = has && await _authService.isSessionActive();
     setState(() {
       _hasCredentials = has;
+      _authenticated = sessionActive;
       _loading = false;
     });
   }
@@ -44,6 +46,7 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
       return;
     }
     await _authService.setCredentials(_usernameController.text, _passwordController.text);
+    await _authService.setSessionActive(true);
     setState(() {
       _hasCredentials = true;
       _authenticated = true;
@@ -54,6 +57,7 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
   Future<void> _login() async {
     final ok = await _authService.verify(_usernameController.text, _passwordController.text);
     if (ok) {
+      await _authService.setSessionActive(true);
       setState(() => _authenticated = true);
     } else {
       setState(() => _errorMessage = 'Identifiant ou mot de passe incorrect.');
