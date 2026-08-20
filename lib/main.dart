@@ -8,6 +8,7 @@ import 'screens/templates_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/statistics_screen.dart';
 import 'screens/bulk_send_progress_panel.dart';
+import 'screens/login_gate_screen.dart';
 import 'services/scheduler_service.dart';
 import 'services/send_jobs_manager.dart';
 
@@ -81,7 +82,7 @@ class EmailingProApp extends StatelessWidget {
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
-      home: const HomeShell(),
+      home: const LoginGateScreen(child: HomeShell()),
     );
   }
 }
