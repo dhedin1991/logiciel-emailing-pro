@@ -1,4 +1,4 @@
-[main 05fe4a6] Build Android
+[main 23abd33] Build Android
  1 file changed, 0 insertions(+), 0 deletions(-)
 Removing .metadata
 Removing analysis_options.yaml
@@ -19,81 +19,82 @@ Removing test/
 === tentative 1 ===
 From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-   79dfeb0..2e4e569  main       -> origin/main
-Rebasing (1/1)Successfully rebased and updated refs/heads/main.
-remote: warning: See https://gh.io/lfs for more information.        
-remote: warning: File builds/android-latest.apk is 54.72 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        
-remote: warning: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        
-To https://github.com/renardc427-ops/logiciel-emailing-pro
- ! [remote rejected] HEAD -> main (cannot lock ref 'refs/heads/main': is at df62ccb8a3e081136d4f300170b3e4e4aa9eb76d but expected 2e4e5690c7dc40661264d69450e2f383d1d7dcd4)
-error: failed to push some refs to 'https://github.com/renardc427-ops/logiciel-emailing-pro'
-PUSH ECHOUE
-=== tentative 2 ===
-From https://github.com/renardc427-ops/logiciel-emailing-pro
- * branch            main       -> FETCH_HEAD
-   2e4e569..df62ccb  main       -> origin/main
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+   e3320b3..9b40201  main       -> origin/main
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 23abd33 (Build Android))
 Auto-merging builds/android-latest.apk
 CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply 91e6a22... Build Android
+error: could not apply 23abd33... Build Android
 hint: Resolve all conflicts manually, mark them as resolved with
 hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
 hint: You can instead skip this commit: run "git rebase --skip".
 hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
 hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply 91e6a22... # Build Android
+Could not apply 23abd33... # Build Android
+REBASE ECHOUE
+=== tentative 2 ===
+From https://github.com/renardc427-ops/logiciel-emailing-pro
+ * branch            main       -> FETCH_HEAD
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 23abd33 (Build Android))
+Auto-merging builds/android-latest.apk
+CONFLICT (content): Merge conflict in builds/android-latest.apk
+error: could not apply 23abd33... Build Android
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 23abd33... # Build Android
 REBASE ECHOUE
 === tentative 3 ===
 From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+   9b40201..f2ea7cf  main       -> origin/main
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 23abd33 (Build Android))
 Auto-merging builds/android-latest.apk
 CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply 91e6a22... Build Android
+error: could not apply 23abd33... Build Android
 hint: Resolve all conflicts manually, mark them as resolved with
 hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
 hint: You can instead skip this commit: run "git rebase --skip".
 hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
 hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply 91e6a22... # Build Android
+Could not apply 23abd33... # Build Android
 REBASE ECHOUE
 === tentative 4 ===
 From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 23abd33 (Build Android))
 Auto-merging builds/android-latest.apk
 CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply 91e6a22... Build Android
+error: could not apply 23abd33... Build Android
 hint: Resolve all conflicts manually, mark them as resolved with
 hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
 hint: You can instead skip this commit: run "git rebase --skip".
 hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
 hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply 91e6a22... # Build Android
+Could not apply 23abd33... # Build Android
 REBASE ECHOUE
 === tentative 5 ===
 From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 91e6a22 (Build Android))
+Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. 23abd33 (Build Android))
 Auto-merging builds/android-latest.apk
 CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply 91e6a22... Build Android
+error: could not apply 23abd33... Build Android
 hint: Resolve all conflicts manually, mark them as resolved with
 hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
 hint: You can instead skip this commit: run "git rebase --skip".
 hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
 hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply 91e6a22... # Build Android
+Could not apply 23abd33... # Build Android
 REBASE ECHOUE
 === git log final ===
-91e6a22 Build Android
-2e4e569 Build Windows
-4760a79 Build Windows
-79dfeb0 Fix: detecter expiration Gmail (mode Test) + bouton Reconnecter - lib/screens/accounts_screen.dart
+23abd33 Build Android
+e3320b3 Ajout ecran de connexion (protection acces app) - lib/main.dart
 === git status ===
 On branch main
 Your branch and 'origin/main' have diverged,
-and have 1 and 1 different commits each, respectively.
+and have 1 and 6 different commits each, respectively.
   (use "git pull" if you want to integrate the remote branch with yours)
 
 Untracked files:
