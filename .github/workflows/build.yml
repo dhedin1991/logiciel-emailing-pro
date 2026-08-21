@@ -58,23 +58,27 @@ jobs:
           git add build-logs-windows.txt -f
           git commit -m "Log erreur build Windows"
           git push origin HEAD:main
-      - name: Deposer le build Windows dans le depot (API, sans conflit)
+      - name: Deposer le build Windows dans le depot (le nouveau fichier gagne toujours)
         if: success()
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path builds | Out-Null
-          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath builds/windows-latest.zip -Force
-          $content = [Convert]::ToBase64String([IO.File]::ReadAllBytes("builds/windows-latest.zip"))
-          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
-          $repo = "$env:GITHUB_REPOSITORY"
-          $uri = "https://api.github.com/repos/$repo/contents/builds/windows-latest.zip"
-          $sha = $null
-          try { $existing = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get; $sha = $existing.sha } catch {}
-          $body = @{ message = "Build Windows"; content = $content }
-          if ($sha) { $body.sha = $sha }
-          Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body ($body | ConvertTo-Json) -ContentType "application/json"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath /tmp/windows-latest.zip -Force
+          git config user.email "ci-bot@local"
+          git config user.name "CI Bot"
+          $SUCCESS = $false
+          for ($i=1; $i -le 5; $i++) {
+            git fetch origin main
+            git reset --hard origin/main
+            New-Item -ItemType Directory -Force -Path builds | Out-Null
+            Copy-Item /tmp/windows-latest.zip builds/windows-latest.zip -Force
+            git add builds/windows-latest.zip -f
+            git commit -m "Build Windows"
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) { $SUCCESS = $true; break }
+            Start-Sleep -Seconds (Get-Random -Minimum 4 -Maximum 12)
+          }
+          if (-not $SUCCESS) { exit 1 }
   build-android:
     runs-on: ubuntu-latest
     steps:
