@@ -67,18 +67,29 @@ jobs:
           git config user.email "ci-bot@local"
           git config user.name "CI Bot"
           $SUCCESS = $false
+          "" | Out-File win-deposit-log.txt
           for ($i=1; $i -le 5; $i++) {
-            git fetch origin main
-            git reset --hard origin/main
+            Add-Content win-deposit-log.txt "=== tentative $i ==="
+            git fetch origin main 2>&1 | Add-Content win-deposit-log.txt
+            git reset --hard origin/main 2>&1 | Add-Content win-deposit-log.txt
             New-Item -ItemType Directory -Force -Path builds | Out-Null
             Copy-Item /tmp/windows-latest.zip builds/windows-latest.zip -Force
-            git add builds/windows-latest.zip -f
-            git commit -m "Build Windows"
-            git push origin HEAD:main
-            if ($LASTEXITCODE -eq 0) { $SUCCESS = $true; break }
+            git add builds/windows-latest.zip -f 2>&1 | Add-Content win-deposit-log.txt
+            git commit -m "Build Windows" 2>&1 | Add-Content win-deposit-log.txt
+            git push origin HEAD:main 2>&1 | Add-Content win-deposit-log.txt
+            if ($LASTEXITCODE -eq 0) { $SUCCESS = $true; Add-Content win-deposit-log.txt "PUSH REUSSI"; break }
+            Add-Content win-deposit-log.txt "PUSH ECHOUE"
             Start-Sleep -Seconds (Get-Random -Minimum 4 -Maximum 12)
           }
-          if (-not $SUCCESS) { exit 1 }
+          Get-Content win-deposit-log.txt
+          if (-not $SUCCESS) {
+            git add win-deposit-log.txt -f
+            git commit -m "Log erreur depot Windows"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+            exit 1
+          }
   build-android:
     runs-on: ubuntu-latest
     steps:
