@@ -62,6 +62,8 @@ jobs:
         if: success()
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $ErrorActionPreference = 'Continue'
           New-Item -ItemType Directory -Force -Path builds | Out-Null
           Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath /tmp/windows-latest.zip -Force
           git config user.email "ci-bot@local"
