@@ -70,15 +70,21 @@ jobs:
           "" | Out-File win-deposit-log.txt
           for ($i=1; $i -le 5; $i++) {
             Add-Content win-deposit-log.txt "=== tentative $i ==="
-            git fetch origin main 2>&1 | Add-Content win-deposit-log.txt
-            git reset --hard origin/main 2>&1 | Add-Content win-deposit-log.txt
+            git fetch origin main *> fetch_out.txt
+            Get-Content fetch_out.txt | Add-Content win-deposit-log.txt
+            git reset --hard origin/main *> reset_out.txt
+            Get-Content reset_out.txt | Add-Content win-deposit-log.txt
             New-Item -ItemType Directory -Force -Path builds | Out-Null
             Copy-Item /tmp/windows-latest.zip builds/windows-latest.zip -Force
-            git add builds/windows-latest.zip -f 2>&1 | Add-Content win-deposit-log.txt
-            git commit -m "Build Windows" 2>&1 | Add-Content win-deposit-log.txt
-            git push origin HEAD:main 2>&1 | Add-Content win-deposit-log.txt
-            if ($LASTEXITCODE -eq 0) { $SUCCESS = $true; Add-Content win-deposit-log.txt "PUSH REUSSI"; break }
-            Add-Content win-deposit-log.txt "PUSH ECHOUE"
+            git add builds/windows-latest.zip -f
+            git commit -m "Build Windows" *> commit_out.txt
+            Get-Content commit_out.txt | Add-Content win-deposit-log.txt
+            git push origin HEAD:main *> push_out.txt
+            $pushExit = $LASTEXITCODE
+            Get-Content push_out.txt | Add-Content win-deposit-log.txt
+            Add-Content win-deposit-log.txt "push exit code: $pushExit"
+            if ($pushExit -eq 0) { $SUCCESS = $true; Add-Content win-deposit-log.txt "PUSH REUSSI"; break }
+            Add-Content win-deposit-log.txt "PUSH ECHOUE, nouvelle tentative"
             Start-Sleep -Seconds (Get-Random -Minimum 4 -Maximum 12)
           }
           Get-Content win-deposit-log.txt
