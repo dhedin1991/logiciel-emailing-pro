@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/sent_email_log.dart';
 import '../services/history_storage.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/confirm_delete.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -29,6 +30,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
+  Future<void> _clearAll() async {
+    if (_entries.isEmpty) return;
+    final ok = await confirmDelete(context, 'tout l\'historique (${_entries.length} entrées)');
+    if (!ok) return;
+    await _storage.clearAll();
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -41,6 +50,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Row(
             children: [
               Expanded(child: Text('Historique (${_entries.length})', style: Theme.of(context).textTheme.headlineSmall)),
+              TextButton.icon(
+                onPressed: _clearAll,
+                icon: const Icon(Icons.delete_sweep_outlined),
+                label: const Text('Tout effacer'),
+              ),
               IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
             ],
           ),
