@@ -108,6 +108,28 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
                   q.isRunning ? 'En cours : ${current.email} (${_statusLabel(current.status)})' : 'Arrêté',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
+                if (!q.isRunning && q.abortReason != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Campagne arrêtée : ${q.abortReason}',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 Expanded(
                   child: DefaultTabController(
