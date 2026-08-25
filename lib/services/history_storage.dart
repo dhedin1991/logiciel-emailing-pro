@@ -23,4 +23,8 @@ class HistoryStorage {
     final raw = jsonEncode(entries.map((e) => e.toJson()).toList());
     await _storage.write(key: _key, value: raw);
   }
+
+  Future<void> clearAll() async {
+    await _storage.delete(key: _key);
+  }
 }
