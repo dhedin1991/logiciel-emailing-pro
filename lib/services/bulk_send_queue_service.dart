@@ -6,6 +6,7 @@ import '../models/email_account.dart';
 import '../models/queue_email_item.dart';
 import '../models/signature.dart';
 import 'email_dispatch_service.dart';
+import 'gmail_auth_service.dart';
 
 /// File d'attente d'envoi strictement séquentielle : un seul e-mail est
 /// traité à la fois (lecture -> génération -> connexion -> envoi ->
@@ -23,6 +24,7 @@ class BulkSendQueueService extends ChangeNotifier {
   bool isRunning = false;
   bool isPaused = false;
   bool isCancelled = false;
+  String? abortReason;
   DateTime? _startedAt;
 
   int minDelayMs = 1500;
@@ -56,6 +58,7 @@ class BulkSendQueueService extends ChangeNotifier {
     isCancelled = false;
     isPaused = false;
     isRunning = false;
+    abortReason = null;
     notifyListeners();
   }
 
@@ -141,6 +144,25 @@ class BulkSendQueueService extends ChangeNotifier {
             durationMs: stopwatch.elapsedMilliseconds,
             errorMessage: e.toString(),
           ));
+
+          // Une connexion expirée/révoquée touche TOUT le compte, pas ce seul
+          // destinataire : inutile (et très long) de retenter sur chacun des
+          // suivants — on arrête la campagne immédiatement.
+          if (e is GmailReauthRequiredException) {
+            item.status = QueueItemStatus.failed;
+            abortReason = e.toString();
+            for (final remaining in items) {
+              if (remaining.status == QueueItemStatus.waiting) {
+                remaining.status = QueueItemStatus.skipped;
+              }
+            }
+            isCancelled = true;
+            notifyListeners();
+            isRunning = false;
+            notifyListeners();
+            return;
+          }
+
           if (attempt > maxRetries) {
             item.status = QueueItemStatus.failed;
           }
