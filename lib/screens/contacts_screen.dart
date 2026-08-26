@@ -25,6 +25,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String? _statusMessage;
   bool _statusIsError = false;
 
+  final Set<String> _selectedIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +37,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final contacts = await _storage.loadContacts();
     setState(() {
       _contacts = contacts;
+      _selectedIds.removeWhere((id) => !contacts.any((c) => c.id == id));
       _loading = false;
     });
   }
@@ -112,11 +115,48 @@ class _ContactsScreenState extends State<ContactsScreen> {
     await _loadContacts();
   }
 
+  void _toggleSelectAll(bool? checked) {
+    setState(() {
+      if (checked == true) {
+        _selectedIds
+          ..clear()
+          ..addAll(_contacts.map((c) => c.id));
+      } else {
+        _selectedIds.clear();
+      }
+    });
+  }
+
+  Future<void> _deleteSelection() async {
+    if (_selectedIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer la suppression'),
+        content: Text('Vous êtes sur le point de supprimer ${_selectedIds.length} contact(s). Voulez-vous continuer ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _storage.removeContacts(_selectedIds);
+    setState(() => _selectedIds.clear());
+    await _loadContacts();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final allSelected = _contacts.isNotEmpty && _selectedIds.length == _contacts.length;
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -149,7 +189,25 @@ class _ContactsScreenState extends State<ContactsScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: Text(_statusMessage!, style: TextStyle(color: _statusIsError ? Colors.red : Colors.green)),
             ),
-          const SizedBox(height: 16),
+          if (_contacts.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Checkbox(value: allSelected, onChanged: _toggleSelectAll),
+                const Text('Tout sélectionner'),
+                const SizedBox(width: 16),
+                if (_selectedIds.isNotEmpty) Text('${_selectedIds.length} sélectionné(s)'),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _selectedIds.isEmpty ? null : _deleteSelection,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  label: const Text('Supprimer la sélection'),
+                  style: TextButton.styleFrom(foregroundColor: _selectedIds.isEmpty ? null : Colors.red),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
           Expanded(
             child: _contacts.isEmpty
                 ? const EmptyState(
@@ -161,9 +219,19 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     itemCount: _contacts.length,
                     itemBuilder: (context, index) {
                       final contact = _contacts[index];
+                      final selected = _selectedIds.contains(contact.id);
                       return Card(
                         child: ListTile(
-                          leading: const Icon(Icons.person_outline),
+                          leading: Checkbox(
+                            value: selected,
+                            onChanged: (checked) => setState(() {
+                              if (checked == true) {
+                                _selectedIds.add(contact.id);
+                              } else {
+                                _selectedIds.remove(contact.id);
+                              }
+                            }),
+                          ),
                           title: Text(contact.name),
                           subtitle: Text(contact.email + (contact.company.isNotEmpty ? ' • ${contact.company}' : '')),
                           trailing: IconButton(
