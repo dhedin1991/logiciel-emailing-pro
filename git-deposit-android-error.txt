@@ -1,104 +1,14 @@
-[main b02acbc] Build Android
- 1 file changed, 0 insertions(+), 0 deletions(-)
-Removing .metadata
-Removing analysis_options.yaml
-Removing android/.gitignore
-Removing android/.kotlin/
-Removing android/app/build.gradle.kts
-Removing android/app/src/debug/
-Removing android/app/src/main/AndroidManifest.xml
-Removing android/app/src/main/kotlin/
-Removing android/app/src/main/res/
-Removing android/app/src/profile/
-Removing android/build.gradle.kts
-Removing android/gradle.properties
-Removing android/gradle/wrapper/gradle-wrapper.properties
-Removing android/settings.gradle.kts
-Removing pubspec.lock
-Removing test/
-=== tentative 1 ===
-From https://github.com/renardc427-ops/logiciel-emailing-pro
- * branch            main       -> FETCH_HEAD
-   5a03cbb..93016d7  main       -> origin/main
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. b02acbc (Build Android))
-Auto-merging builds/android-latest.apk
-CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply b02acbc... Build Android
-hint: Resolve all conflicts manually, mark them as resolved with
-hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
-hint: You can instead skip this commit: run "git rebase --skip".
-hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
-hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply b02acbc... # Build Android
-REBASE ECHOUE
-=== tentative 2 ===
-From https://github.com/renardc427-ops/logiciel-emailing-pro
- * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. b02acbc (Build Android))
-Auto-merging builds/android-latest.apk
-CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply b02acbc... Build Android
-hint: Resolve all conflicts manually, mark them as resolved with
-hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
-hint: You can instead skip this commit: run "git rebase --skip".
-hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
-hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply b02acbc... # Build Android
-REBASE ECHOUE
-=== tentative 3 ===
-From https://github.com/renardc427-ops/logiciel-emailing-pro
- * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. b02acbc (Build Android))
-Auto-merging builds/android-latest.apk
-CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply b02acbc... Build Android
-hint: Resolve all conflicts manually, mark them as resolved with
-hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
-hint: You can instead skip this commit: run "git rebase --skip".
-hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
-hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply b02acbc... # Build Android
-REBASE ECHOUE
-=== tentative 4 ===
-From https://github.com/renardc427-ops/logiciel-emailing-pro
- * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. b02acbc (Build Android))
-Auto-merging builds/android-latest.apk
-CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply b02acbc... Build Android
-hint: Resolve all conflicts manually, mark them as resolved with
-hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
-hint: You can instead skip this commit: run "git rebase --skip".
-hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
-hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply b02acbc... # Build Android
-REBASE ECHOUE
 === tentative 5 ===
 From https://github.com/renardc427-ops/logiciel-emailing-pro
  * branch            main       -> FETCH_HEAD
-Rebasing (1/1)warning: Cannot merge binary files: builds/android-latest.apk (HEAD vs. b02acbc (Build Android))
-Auto-merging builds/android-latest.apk
-CONFLICT (content): Merge conflict in builds/android-latest.apk
-error: could not apply b02acbc... Build Android
-hint: Resolve all conflicts manually, mark them as resolved with
-hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
-hint: You can instead skip this commit: run "git rebase --skip".
-hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
-hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply b02acbc... # Build Android
-REBASE ECHOUE
-=== git log final ===
-b02acbc Build Android
-5a03cbb Build Windows
-=== git status ===
-On branch main
-Your branch and 'origin/main' have diverged,
-and have 1 and 7 different commits each, respectively.
-  (use "git pull" if you want to integrate the remote branch with yours)
-
-Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-	android/
-	git-deposit-log.txt
-
-nothing added to commit but untracked files present (use "git add" to track)
+   76f018f..8f66582  main       -> origin/main
+HEAD is now at 8f66582 Build Android
+[main a60f966] Build Android
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+remote: warning: See https://gh.io/lfs for more information.        
+remote: warning: File builds/android-latest.apk is 55.08 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        
+remote: warning: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        
+To https://github.com/renardc427-ops/logiciel-emailing-pro
+ ! [remote rejected] HEAD -> main (cannot lock ref 'refs/heads/main': is at 130a428bd2dacf4ef0d1ba2d9668be6ec2fdbf57 but expected 8f66582082f4b054da0e11155e633f0f1bdb17ae)
+error: failed to push some refs to 'https://github.com/renardc427-ops/logiciel-emailing-pro'
+PUSH ECHOUE
