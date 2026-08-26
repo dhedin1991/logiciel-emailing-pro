@@ -47,6 +47,12 @@ class ContactStorage {
     await saveContacts(contacts);
   }
 
+  Future<void> removeContacts(Set<String> ids) async {
+    final contacts = await loadContacts();
+    contacts.removeWhere((c) => ids.contains(c.id));
+    await saveContacts(contacts);
+  }
+
   Future<void> updateContact(Contact updated) async {
     final contacts = await loadContacts();
     final index = contacts.indexWhere((c) => c.id == updated.id);
