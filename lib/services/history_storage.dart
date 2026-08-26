@@ -27,4 +27,11 @@ class HistoryStorage {
   Future<void> clearAll() async {
     await _storage.delete(key: _key);
   }
+
+  Future<void> removeEntries(Set<String> ids) async {
+    final entries = await loadAll();
+    entries.removeWhere((e) => ids.contains(e.id));
+    final raw = jsonEncode(entries.map((e) => e.toJson()).toList());
+    await _storage.write(key: _key, value: raw);
+  }
 }
