@@ -91,6 +91,13 @@ class SyncService {
     await _push('contacts', contacts.map((c) => c.toJson()).toList());
     await _push('templates', templates.map((t) => t.toJson()).toList());
     await _push('signatures', signatures.map((s) => s.toJson()).toList());
+    await _secureStorage.write(key: 'last_backup_at', value: DateTime.now().toIso8601String());
+  }
+
+  Future<DateTime?> lastBackupAt() async {
+    final raw = await _secureStorage.read(key: 'last_backup_at');
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
   }
 
   /// Récupère contacts, modèles et signatures depuis le cloud et
