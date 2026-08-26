@@ -16,6 +16,7 @@ class _SyncScreenState extends State<SyncScreen> {
   bool _busy = false;
   String? _statusMessage;
   bool _statusIsError = false;
+  DateTime? _lastBackupAt;
 
   @override
   void initState() {
@@ -25,8 +26,10 @@ class _SyncScreenState extends State<SyncScreen> {
 
   Future<void> _load() async {
     final code = await _syncService.getOrCreateSyncCode();
+    final lastBackup = await _syncService.lastBackupAt();
     setState(() {
       _syncCode = code;
+      _lastBackupAt = lastBackup;
       _loading = false;
     });
   }
@@ -38,9 +41,11 @@ class _SyncScreenState extends State<SyncScreen> {
     });
     try {
       await _syncService.pushAll();
+      final lastBackup = await _syncService.lastBackupAt();
       setState(() {
         _statusMessage = 'Contacts, modèles et signatures envoyés vers le cloud.';
         _statusIsError = false;
+        _lastBackupAt = lastBackup;
       });
     } catch (e) {
       setState(() {
@@ -101,6 +106,35 @@ class _SyncScreenState extends State<SyncScreen> {
               style: TextStyle(color: Colors.grey.shade700),
             ),
             const SizedBox(height: 24),
+            Builder(builder: (context) {
+              final daysSince = _lastBackupAt == null ? null : DateTime.now().difference(_lastBackupAt!).inDays;
+              final isOld = daysSince == null || daysSince >= 7;
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (isOld ? Colors.orange : Colors.green).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(isOld ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                        color: isOld ? Colors.orange : Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _lastBackupAt == null
+                            ? 'Aucune sauvegarde vers le cloud n\'a encore été faite.'
+                            : daysSince == 0
+                                ? 'Dernière sauvegarde : aujourd\'hui.'
+                                : 'Dernière sauvegarde : il y a $daysSince jour(s).'
+                                    '${isOld ? ' Pensez à sauvegarder vos données.' : ''}',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
             Text('Code de synchronisation de cet appareil', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             SelectableText(_syncCode, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
