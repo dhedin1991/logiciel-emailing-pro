@@ -1,20 +1,28 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Protège l'accès au logiciel avec un identifiant + mot de passe choisis
-/// par l'utilisateur, stockés chiffrés sur l'appareil (jamais en clair,
-/// jamais envoyés nulle part). La session reste active d'un lancement à
-/// l'autre pendant 7 jours, puis redemande automatiquement la connexion
-/// (même principe que la connexion Gmail).
+/// par l'utilisateur.
+///
+/// L'identifiant/mot de passe (sensibles) restent dans le coffre chiffré
+/// (flutter_secure_storage). L'état "session active" (pas sensible en soi,
+/// juste un indicateur "déjà connecté") est stocké dans un simple fichier
+/// local, plus fiable pour la persistance entre redémarrages sur Windows
+/// que le coffre chiffré (bug connu de la bibliothèque sur cette plateforme).
 class AppAuthService {
   static const _usernameKey = 'app_lock_username';
   static const _passwordHashKey = 'app_lock_password_hash';
   static const _saltKey = 'app_lock_salt';
-  static const _sessionKey = 'app_lock_session_active';
-  static const _sessionStartedAtKey = 'app_lock_session_started_at';
   static const sessionDuration = Duration(days: 7);
   final _storage = const FlutterSecureStorage();
+
+  Future<File> _sessionFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}/session.json');
+  }
 
   Future<bool> hasCredentials() async {
     final username = await _storage.read(key: _usernameKey);
@@ -23,33 +31,44 @@ class AppAuthService {
 
   /// Vrai si une session a été ouverte et date de moins de 7 jours.
   Future<bool> isSessionActive() async {
-    final active = await _storage.read(key: _sessionKey);
-    if (active != 'true') return false;
-    final startedAtRaw = await _storage.read(key: _sessionStartedAtKey);
-    if (startedAtRaw == null) return false;
-    final startedAt = DateTime.tryParse(startedAtRaw);
-    if (startedAt == null) return false;
-    if (DateTime.now().difference(startedAt) > sessionDuration) {
-      await setSessionActive(false);
+    try {
+      final file = await _sessionFile();
+      if (!await file.exists()) return false;
+      final content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      if (content['active'] != true) return false;
+      final startedAt = DateTime.tryParse(content['startedAt'] as String? ?? '');
+      if (startedAt == null) return false;
+      if (DateTime.now().difference(startedAt) > sessionDuration) {
+        await setSessionActive(false);
+        return false;
+      }
+      return true;
+    } catch (_) {
       return false;
     }
-    return true;
   }
 
   /// Date/heure à laquelle la session expirera (null si pas de session active).
   Future<DateTime?> sessionExpiresAt() async {
-    final startedAtRaw = await _storage.read(key: _sessionStartedAtKey);
-    if (startedAtRaw == null) return null;
-    final startedAt = DateTime.tryParse(startedAtRaw);
-    if (startedAt == null) return null;
-    return startedAt.add(sessionDuration);
+    try {
+      final file = await _sessionFile();
+      if (!await file.exists()) return null;
+      final content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final startedAt = DateTime.tryParse(content['startedAt'] as String? ?? '');
+      if (startedAt == null) return null;
+      return startedAt.add(sessionDuration);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> setSessionActive(bool active) async {
-    await _storage.write(key: _sessionKey, value: active.toString());
+    final file = await _sessionFile();
+    final data = <String, dynamic>{'active': active};
     if (active) {
-      await _storage.write(key: _sessionStartedAtKey, value: DateTime.now().toIso8601String());
+      data['startedAt'] = DateTime.now().toIso8601String();
     }
+    await file.writeAsString(jsonEncode(data));
   }
 
   Future<void> setCredentials(String username, String password) async {
