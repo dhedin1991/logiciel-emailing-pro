@@ -198,8 +198,22 @@ class _EmailCleaningScreenState extends State<EmailCleaningScreen> {
               emails: result.disposable,
               onCopy: () => _copy(result.disposable, 'domaines jetables'),
             ),
+            if (result.byProvider.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Par fournisseur (Gmail, Outlook, Yahoo...)', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ...(result.byProvider.entries.toList()
+                    ..sort((a, b) => b.value.length.compareTo(a.value.length)))
+                  .map((entry) => _CategoryTile(
+                        title: entry.key,
+                        count: entry.value.length,
+                        color: Colors.indigo,
+                        emails: entry.value,
+                        onCopy: () => _copy(entry.value, entry.key),
+                      )),
+            ],
             _CategoryTile(
-              title: 'Pays indéterminé / domaine international',
+              title: 'Autre / pays vraiment indéterminé',
               count: result.undeterminedCountry.length,
               color: Colors.blueGrey,
               emails: result.undeterminedCountry,
@@ -232,7 +246,7 @@ class _StatsSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final countryCount = result.valid.length - result.undeterminedCountry.length;
+    final countryCount = result.byCountry.values.fold<int>(0, (sum, list) => sum + list.length);
     final items = <String, int>{
       'Total importé': result.totalImported,
       'Doublons retirés': result.duplicatesRemoved,
