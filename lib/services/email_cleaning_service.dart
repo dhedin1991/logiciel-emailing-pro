@@ -71,6 +71,7 @@ CleaningResult cleanAndClassify(CleaningInput input) {
   final generic = <ClassifiedEmail>[];
   final disposable = <ClassifiedEmail>[];
   final byCountry = <String, List<ClassifiedEmail>>{};
+  final byProvider = <String, List<ClassifiedEmail>>{};
   final undetermined = <ClassifiedEmail>[];
 
   final genericSet = input.genericPrefixes.map((e) => e.toLowerCase()).toSet();
@@ -134,7 +135,12 @@ CleaningResult cleanAndClassify(CleaningInput input) {
     if (country != null) {
       byCountry.putIfAbsent(country, () => []).add(classified);
     } else {
-      undetermined.add(classified);
+      final provider = internationalDomainProviders[domain];
+      if (provider != null) {
+        byProvider.putIfAbsent(provider, () => []).add(classified);
+      } else {
+        undetermined.add(classified);
+      }
     }
   }
 
@@ -146,6 +152,7 @@ CleaningResult cleanAndClassify(CleaningInput input) {
     generic: generic,
     disposable: disposable,
     byCountry: byCountry,
+    byProvider: byProvider,
     undeterminedCountry: undetermined,
   );
 }
