@@ -80,23 +80,27 @@ const Map<String, String> ccTldToCountry = {
 
 /// Domaines volontairement JAMAIS classés par pays (trop génériques,
 /// utilisés dans le monde entier), quel que soit leur ccTLD apparent.
-const Set<String> internationalDomains = {
-  'gmail.com',
-  'googlemail.com',
-  'outlook.com',
-  'hotmail.com',
-  'hotmail.fr',
-  'hotmail.co.uk',
-  'live.com',
-  'yahoo.com',
-  'yahoo.fr',
-  'icloud.com',
-  'me.com',
-  'aol.com',
-  'protonmail.com',
-  'proton.me',
-  'zoho.com',
-  'gmx.com',
-  'gmx.net',
-  'mail.com',
+/// Associés à un nom de fournisseur pour un classement séparé et lisible
+/// (ex : "Gmail" plutôt que noyés dans "indéterminé").
+const Map<String, String> internationalDomainProviders = {
+  'gmail.com': 'Gmail',
+  'googlemail.com': 'Gmail',
+  'outlook.com': 'Outlook',
+  'hotmail.com': 'Outlook / Hotmail',
+  'hotmail.fr': 'Outlook / Hotmail',
+  'hotmail.co.uk': 'Outlook / Hotmail',
+  'live.com': 'Outlook / Live',
+  'yahoo.com': 'Yahoo',
+  'yahoo.fr': 'Yahoo',
+  'icloud.com': 'iCloud',
+  'me.com': 'iCloud',
+  'aol.com': 'AOL',
+  'protonmail.com': 'ProtonMail',
+  'proton.me': 'ProtonMail',
+  'zoho.com': 'Zoho Mail',
+  'gmx.com': 'GMX',
+  'gmx.net': 'GMX',
+  'mail.com': 'Mail.com',
 };
+
+final Set<String> internationalDomains = internationalDomainProviders.keys.toSet();
