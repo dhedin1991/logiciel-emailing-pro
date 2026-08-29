@@ -24,6 +24,7 @@ class CleaningResult {
   final List<ClassifiedEmail> generic;
   final List<ClassifiedEmail> disposable;
   final Map<String, List<ClassifiedEmail>> byCountry; // pays -> adresses valides
+  final Map<String, List<ClassifiedEmail>> byProvider; // Gmail, Outlook... -> adresses (domaine international)
   final List<ClassifiedEmail> undeterminedCountry; // valides mais pays inconnu
 
   CleaningResult({
@@ -34,6 +35,7 @@ class CleaningResult {
     required this.generic,
     required this.disposable,
     required this.byCountry,
+    required this.byProvider,
     required this.undeterminedCountry,
   });
 }
