@@ -18,6 +18,7 @@ import '../services/signature_storage.dart';
 import '../services/bulk_send_queue_service.dart';
 import '../services/send_jobs_manager.dart';
 import 'bulk_send_progress_panel.dart';
+import 'email_preview_dialog.dart';
 import 'message_analysis_dialog.dart';
 
 class ComposeScreen extends StatefulWidget {
@@ -235,6 +236,28 @@ class _ComposeScreenState extends State<ComposeScreen> {
       await _scheduleSingle();
     } else {
       await _sendSingle();
+    }
+  }
+
+  Future<void> _showPreviewThenSend() async {
+    if (_selectedAccount == null) return;
+    final bodyWithSignature = _selectedSignature != null
+        ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
+        : _bodyController.text;
+    final toDisplay = _bulkMode
+        ? '${_selectedContactIds.length} destinataire(s) sélectionné(s)'
+        : _toController.text;
+    final confirmed = await showEmailPreviewDialog(
+      context,
+      from: _selectedAccount!.email,
+      to: toDisplay,
+      cc: _bulkMode ? null : _ccController.text,
+      subject: _subjectController.text,
+      body: bodyWithSignature,
+      attachmentPaths: _bulkMode ? const [] : List.of(_attachmentPaths),
+    );
+    if (confirmed && mounted) {
+      await _send();
     }
   }
 
@@ -658,7 +681,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 child: Text(_statusMessage!, style: TextStyle(color: _statusIsError ? Colors.red : Colors.green)),
               ),
             FilledButton.icon(
-              onPressed: _sending ? null : _send,
+              onPressed: _sending ? null : _showPreviewThenSend,
               icon: _sending
                   ? const SizedBox(
                       width: 16,
