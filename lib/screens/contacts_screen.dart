@@ -2,8 +2,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/contact.dart';
+import '../models/sent_email_log.dart';
 import '../services/contact_import_service.dart';
 import '../services/contact_storage.dart';
+import '../services/history_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 
@@ -18,6 +20,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   final _storage = ContactStorage();
   final _importService = ContactImportService();
   final _uuid = const Uuid();
+  final _searchController = TextEditingController();
 
   List<Contact> _contacts = [];
   bool _loading = true;
@@ -26,6 +29,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
   bool _statusIsError = false;
 
   final Set<String> _selectedIds = {};
+  String _searchQuery = '';
+  String? _tagFilter;
+  String? _statusFilter;
 
   @override
   void initState() {
@@ -40,6 +46,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
       _selectedIds.removeWhere((id) => !contacts.any((c) => c.id == id));
       _loading = false;
     });
+  }
+
+  List<Contact> get _filteredContacts {
+    return _contacts.where((c) {
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matches = c.name.toLowerCase().contains(q) ||
+            c.email.toLowerCase().contains(q) ||
+            c.domain.toLowerCase().contains(q) ||
+            c.company.toLowerCase().contains(q);
+        if (!matches) return false;
+      }
+      if (_tagFilter != null && !c.tags.contains(_tagFilter)) return false;
+      if (_statusFilter != null && c.status != _statusFilter) return false;
+      return true;
+    }).toList();
   }
 
   Future<void> _importFile() async {
@@ -73,39 +95,177 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
   }
 
-  Future<void> _showAddContactDialog() async {
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final companyController = TextEditingController();
+  Future<void> _showContactDialog({Contact? existing}) async {
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final emailController = TextEditingController(text: existing?.email ?? '');
+    final companyController = TextEditingController(text: existing?.company ?? '');
+    final noteController = TextEditingController(text: existing?.note ?? '');
+    final tagInputController = TextEditingController();
+    final selectedTags = <String>{...(existing?.tags ?? [])};
+    var status = existing?.status ?? '';
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajouter un contact'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nom')),
-            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'E-mail')),
-            TextField(controller: companyController, decoration: const InputDecoration(labelText: 'Entreprise (facultatif)')),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'Ajouter un contact' : 'Modifier le contact'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nom')),
+                  const SizedBox(height: 8),
+                  TextField(controller: emailController, decoration: const InputDecoration(labelText: 'E-mail')),
+                  const SizedBox(height: 8),
+                  TextField(controller: companyController, decoration: const InputDecoration(labelText: 'Entreprise (facultatif)')),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: status.isEmpty ? null : status,
+                    decoration: const InputDecoration(labelText: 'Statut'),
+                    items: const [
+                      DropdownMenuItem(value: 'Actif', child: Text('Actif')),
+                      DropdownMenuItem(value: 'Inactif', child: Text('Inactif')),
+                      DropdownMenuItem(value: 'Ne plus contacter', child: Text('Ne plus contacter')),
+                    ],
+                    onChanged: (value) => setDialogState(() => status = value ?? ''),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Étiquettes', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: predefinedContactTags
+                        .map((tag) => FilterChip(
+                              label: Text(tag),
+                              selected: selectedTags.contains(tag),
+                              onSelected: (sel) => setDialogState(() {
+                                if (sel) {
+                                  selectedTags.add(tag);
+                                } else {
+                                  selectedTags.remove(tag);
+                                }
+                              }),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: tagInputController,
+                          decoration: const InputDecoration(labelText: 'Étiquette personnalisée'),
+                          onSubmitted: (value) {
+                            if (value.trim().isNotEmpty) {
+                              setDialogState(() {
+                                selectedTags.add(value.trim());
+                                tagInputController.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          if (tagInputController.text.trim().isNotEmpty) {
+                            setDialogState(() {
+                              selectedTags.add(tagInputController.text.trim());
+                              tagInputController.clear();
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  if (selectedTags.any((t) => !predefinedContactTags.contains(t)))
+                    Wrap(
+                      spacing: 6,
+                      children: selectedTags
+                          .where((t) => !predefinedContactTags.contains(t))
+                          .map((t) => Chip(
+                                label: Text(t),
+                                onDeleted: () => setDialogState(() => selectedTags.remove(t)),
+                              ))
+                          .toList(),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(labelText: 'Note', border: OutlineInputBorder()),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enregistrer')),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Ajouter')),
-        ],
       ),
     );
 
     if (saved == true && emailController.text.trim().isNotEmpty) {
-      await _storage.addContact(Contact(
-        id: _uuid.v4(),
-        name: nameController.text.trim().isEmpty ? emailController.text.trim() : nameController.text.trim(),
-        email: emailController.text.trim(),
-        company: companyController.text.trim(),
-      ));
+      if (existing == null) {
+        await _storage.addContact(Contact(
+          id: _uuid.v4(),
+          name: nameController.text.trim().isEmpty ? emailController.text.trim() : nameController.text.trim(),
+          email: emailController.text.trim(),
+          company: companyController.text.trim(),
+          tags: selectedTags.toList(),
+          note: noteController.text.trim(),
+          status: status,
+        ));
+      } else {
+        await _storage.updateContact(existing.copyWith(
+          name: nameController.text.trim().isEmpty ? emailController.text.trim() : nameController.text.trim(),
+          email: emailController.text.trim(),
+          company: companyController.text.trim(),
+          tags: selectedTags.toList(),
+          note: noteController.text.trim(),
+          status: status,
+        ));
+      }
       await _loadContacts();
     }
+  }
+
+  Future<void> _showHistoryFor(Contact contact) async {
+    final allHistory = await HistoryStorage().loadAll();
+    final related = allHistory.where((e) => e.to.toLowerCase() == contact.email.toLowerCase()).toList();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Historique — ${contact.name}'),
+        content: SizedBox(
+          width: 450,
+          height: 350,
+          child: related.isEmpty
+              ? const Center(child: Text('Aucun e-mail envoyé à ce contact pour le moment.'))
+              : ListView.builder(
+                  itemCount: related.length,
+                  itemBuilder: (context, index) {
+                    final SentEmailLog e = related[index];
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(e.success ? Icons.check_circle : Icons.error,
+                          color: e.success ? Colors.green : Colors.red, size: 18),
+                      title: Text(e.subject.isEmpty ? '(sans objet)' : e.subject),
+                      subtitle: Text('${e.sentAt.day}/${e.sentAt.month}/${e.sentAt.year}'),
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+      ),
+    );
   }
 
   Future<void> _removeContact(String id) async {
@@ -116,13 +276,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   void _toggleSelectAll(bool? checked) {
+    final visible = _filteredContacts;
     setState(() {
       if (checked == true) {
-        _selectedIds
-          ..clear()
-          ..addAll(_contacts.map((c) => c.id));
+        _selectedIds.addAll(visible.map((c) => c.id));
       } else {
-        _selectedIds.clear();
+        _selectedIds.removeWhere((id) => visible.any((c) => c.id == id));
       }
     });
   }
@@ -156,7 +315,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final allSelected = _contacts.isNotEmpty && _selectedIds.length == _contacts.length;
+    final visible = _filteredContacts;
+    final allSelected = visible.isNotEmpty && visible.every((c) => _selectedIds.contains(c.id));
+    final allTags = _contacts.expand((c) => c.tags).toSet().toList()..sort();
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -178,7 +339,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
-                onPressed: _showAddContactDialog,
+                onPressed: () => _showContactDialog(),
                 icon: const Icon(Icons.person_add),
                 label: const Text('Ajouter'),
               ),
@@ -189,7 +350,46 @@ class _ContactsScreenState extends State<ContactsScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: Text(_statusMessage!, style: TextStyle(color: _statusIsError ? Colors.red : Colors.green)),
             ),
-          if (_contacts.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    labelText: 'Rechercher (nom, e-mail, domaine, entreprise)',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                ),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<String?>(
+                hint: const Text('Étiquette'),
+                value: _tagFilter,
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Toutes les étiquettes')),
+                  ...allTags.map((t) => DropdownMenuItem(value: t, child: Text(t))),
+                ],
+                onChanged: (value) => setState(() => _tagFilter = value),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<String?>(
+                hint: const Text('Statut'),
+                value: _statusFilter,
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Tous les statuts')),
+                  DropdownMenuItem(value: 'Actif', child: Text('Actif')),
+                  DropdownMenuItem(value: 'Inactif', child: Text('Inactif')),
+                  DropdownMenuItem(value: 'Ne plus contacter', child: Text('Ne plus contacter')),
+                ],
+                onChanged: (value) => setState(() => _statusFilter = value),
+              ),
+            ],
+          ),
+          if (visible.isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -209,16 +409,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ],
           const SizedBox(height: 8),
           Expanded(
-            child: _contacts.isEmpty
+            child: visible.isEmpty
                 ? const EmptyState(
                     icon: Icons.people_outline,
-                    title: 'Aucun contact pour le moment',
-                    subtitle: 'Ajoutez un contact ou importez un fichier CSV, Excel ou texte.',
+                    title: 'Aucun contact',
+                    subtitle: 'Ajoutez un contact, importez un fichier, ou changez vos filtres.',
                   )
                 : ListView.builder(
-                    itemCount: _contacts.length,
+                    itemCount: visible.length,
                     itemBuilder: (context, index) {
-                      final contact = _contacts[index];
+                      final contact = visible[index];
                       final selected = _selectedIds.contains(contact.id);
                       return Card(
                         child: ListTile(
@@ -233,10 +433,47 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             }),
                           ),
                           title: Text(contact.name),
-                          subtitle: Text(contact.email + (contact.company.isNotEmpty ? ' • ${contact.company}' : '')),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _removeContact(contact.id),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(contact.email + (contact.company.isNotEmpty ? ' • ${contact.company}' : '')),
+                              if (contact.tags.isNotEmpty || contact.status.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Wrap(
+                                    spacing: 4,
+                                    children: [
+                                      if (contact.status.isNotEmpty)
+                                        Chip(
+                                          label: Text(contact.status, style: const TextStyle(fontSize: 11)),
+                                          visualDensity: VisualDensity.compact,
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ...contact.tags.map((t) => Chip(
+                                            label: Text(t, style: const TextStyle(fontSize: 11)),
+                                            visualDensity: VisualDensity.compact,
+                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          isThreeLine: contact.tags.isNotEmpty || contact.status.isNotEmpty,
+                          onTap: () => _showContactDialog(existing: contact),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.history),
+                                tooltip: 'Historique',
+                                onPressed: () => _showHistoryFor(contact),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _removeContact(contact.id),
+                              ),
+                            ],
                           ),
                         ),
                       );
