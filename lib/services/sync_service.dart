@@ -100,6 +100,15 @@ class SyncService {
     return DateTime.tryParse(raw);
   }
 
+  Future<int> reminderFrequencyDays() async {
+    final raw = await _secureStorage.read(key: 'backup_reminder_days');
+    return int.tryParse(raw ?? '') ?? 7;
+  }
+
+  Future<void> setReminderFrequencyDays(int days) async {
+    await _secureStorage.write(key: 'backup_reminder_days', value: days.toString());
+  }
+
   /// Récupère contacts, modèles et signatures depuis le cloud et
   /// REMPLACE les données de cet appareil (à utiliser sur un nouvel
   /// appareil, ou pour revenir à la dernière version envoyée).
