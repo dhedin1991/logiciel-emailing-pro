@@ -6,6 +6,7 @@ import '../models/sent_email_log.dart';
 import '../services/contact_import_service.dart';
 import '../services/contact_storage.dart';
 import '../services/history_storage.dart';
+import '../services/export_helper.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 
@@ -62,6 +63,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (_statusFilter != null && c.status != _statusFilter) return false;
       return true;
     }).toList();
+  }
+
+  Future<void> _exportContacts() async {
+    final buffer = StringBuffer('Nom;Email;Entreprise;Telephone;Statut;Etiquettes;Note\n');
+    for (final c in _filteredContacts) {
+      buffer.writeln([
+        csvField(c.name),
+        csvField(c.email),
+        csvField(c.company),
+        csvField(c.phone),
+        csvField(c.status),
+        csvField(c.tags.join(', ')),
+        csvField(c.note),
+      ].join(';'));
+    }
+    await exportTextFile(content: buffer.toString(), suggestedFileName: 'contacts', extension: 'csv');
   }
 
   Future<void> _importFile() async {
@@ -330,6 +347,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 child: Text('Carnet d\'adresses (${_contacts.length})',
                     style: Theme.of(context).textTheme.headlineSmall),
               ),
+              OutlinedButton.icon(
+                onPressed: _contacts.isEmpty ? null : _exportContacts,
+                icon: const Icon(Icons.download),
+                label: const Text('Exporter CSV'),
+              ),
+              const SizedBox(width: 12),
               OutlinedButton.icon(
                 onPressed: _importing ? null : _importFile,
                 icon: _importing
