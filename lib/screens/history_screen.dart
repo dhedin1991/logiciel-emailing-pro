@@ -3,6 +3,7 @@ import '../models/sent_email_log.dart';
 import '../services/history_storage.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/confirm_delete.dart';
+import '../services/export_helper.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -30,6 +31,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _selectedIds.removeWhere((id) => !entries.any((e) => e.id == id));
       _loading = false;
     });
+  }
+
+  Future<void> _exportHistory() async {
+    final buffer = StringBuffer('Destinataire;Objet;Date;Statut;Erreur\n');
+    for (final e in _entries) {
+      buffer.writeln([
+        csvField(e.to),
+        csvField(e.subject),
+        csvField('${e.sentAt.day}/${e.sentAt.month}/${e.sentAt.year} ${e.sentAt.hour.toString().padLeft(2, '0')}:${e.sentAt.minute.toString().padLeft(2, '0')}'),
+        csvField(e.success ? 'Envoyé' : 'Échec'),
+        csvField(e.errorMessage ?? ''),
+      ].join(';'));
+    }
+    await exportTextFile(content: buffer.toString(), suggestedFileName: 'historique', extension: 'csv');
   }
 
   Future<void> _clearAll() async {
@@ -90,6 +105,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Row(
             children: [
               Expanded(child: Text('Historique (${_entries.length})', style: Theme.of(context).textTheme.headlineSmall)),
+              TextButton.icon(
+                onPressed: _entries.isEmpty ? null : _exportHistory,
+                icon: const Icon(Icons.download),
+                label: const Text('Exporter CSV'),
+              ),
               TextButton.icon(
                 onPressed: _clearAll,
                 icon: const Icon(Icons.delete_sweep_outlined),
