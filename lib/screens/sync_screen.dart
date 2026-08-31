@@ -17,6 +17,7 @@ class _SyncScreenState extends State<SyncScreen> {
   String? _statusMessage;
   bool _statusIsError = false;
   DateTime? _lastBackupAt;
+  int _reminderDays = 7;
 
   @override
   void initState() {
@@ -27,9 +28,11 @@ class _SyncScreenState extends State<SyncScreen> {
   Future<void> _load() async {
     final code = await _syncService.getOrCreateSyncCode();
     final lastBackup = await _syncService.lastBackupAt();
+    final reminderDays = await _syncService.reminderFrequencyDays();
     setState(() {
       _syncCode = code;
       _lastBackupAt = lastBackup;
+      _reminderDays = reminderDays;
       _loading = false;
     });
   }
@@ -108,7 +111,7 @@ class _SyncScreenState extends State<SyncScreen> {
             const SizedBox(height: 24),
             Builder(builder: (context) {
               final daysSince = _lastBackupAt == null ? null : DateTime.now().difference(_lastBackupAt!).inDays;
-              final isOld = daysSince == null || daysSince >= 7;
+              final isOld = daysSince == null || daysSince >= _reminderDays;
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -134,6 +137,26 @@ class _SyncScreenState extends State<SyncScreen> {
                 ),
               );
             }),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Me rappeler si aucune sauvegarde depuis : '),
+                DropdownButton<int>(
+                  value: _reminderDays,
+                  items: const [
+                    DropdownMenuItem(value: 3, child: Text('3 jours')),
+                    DropdownMenuItem(value: 7, child: Text('7 jours')),
+                    DropdownMenuItem(value: 14, child: Text('14 jours')),
+                    DropdownMenuItem(value: 30, child: Text('30 jours')),
+                  ],
+                  onChanged: (value) async {
+                    if (value == null) return;
+                    await _syncService.setReminderFrequencyDays(value);
+                    setState(() => _reminderDays = value);
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text('Code de synchronisation de cet appareil', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
