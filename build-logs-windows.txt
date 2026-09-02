@@ -3,5 +3,5 @@ lib/main.dart(140,23): error G4020727C: Not a constant expression. [D:\a\logicie
 lib/screens/contacts_home_screen.dart(27,17): error G4020727C: Not a constant expression. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
 lib/screens/contacts_home_screen.dart(25,17): error G4020727C: Not a constant expression. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
 C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(254,5): error MSB8066: Custom build for 'D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\CMakeFiles\e519e8d2c1c08aa5863de0e7469cf919\flutter_windows.dll.rule;D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\CMakeFiles\476b0fb69235dcdde622d743212d2ba3\flutter_assemble.rule;D:\a\logiciel-emailing-pro\logiciel-emailing-pro\windows\flutter\CMakeLists.txt' exited with code 1. [D:\a\logiciel-emailing-pro\logiciel-emailing-pro\build\windows\x64\flutter\flutter_assemble.vcxproj]
-Building Windows application...                                    40.9s
+Building Windows application...                                    42.8s
 Build process failed.
