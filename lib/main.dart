@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/compose_screen.dart';
 import 'screens/contacts_home_screen.dart';
 import 'screens/dashboard_screen.dart';
-import 'screens/history_screen.dart';
+import 'screens/history_home_screen.dart';
 import 'screens/templates_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/statistics_screen.dart';
@@ -137,7 +137,7 @@ class _HomeShellState extends State<HomeShell> {
     } else if (_selectedIndex == 3) {
       content = const ComposeScreen();
     } else if (_selectedIndex == 4) {
-      content = const HistoryScreen();
+      content = const HistoryHomeScreen();
     } else if (_selectedIndex == 5) {
       content = const StatisticsScreen();
     } else if (_selectedIndex == 6) {
