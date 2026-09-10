@@ -5,6 +5,7 @@ import '../services/gmail_auth_service.dart';
 import '../services/smtp_send_service.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/provider_connection_guide.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -104,11 +105,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'GMX : utilisez votre mot de passe normal (activez POP/IMAP dans les réglages GMX d\'abord). '
-                  'Yahoo/AOL : activez la double authentification puis générez un "mot de passe d\'application" dans leurs réglages de sécurité. '
-                  'Zoho : nécessite un nom de domaine perso (le domaine coûte environ 10€/an, Zoho reste gratuit jusqu\'à 5 adresses) — '
-                  'et il faut activer "Accès IMAP" dans Zoho Mail (Paramètres → Comptes de messagerie → POP/IMAP) avant de connecter ici. '
-                  'Pas Gmail ni Outlook (bouton dédié).',
+                  'Besoin des étapes détaillées ? Voir "Guide de connexion par fournisseur" au-dessus de la liste des comptes. '
+                  'Zoho : nécessite un nom de domaine perso (environ 10€/an, Zoho reste gratuit jusqu\'à 5 adresses) — '
+                  'activer "Accès IMAP" dans Zoho Mail (Paramètres → Comptes de messagerie → POP/IMAP) avant de connecter ici. '
+                  'Outlook n\'est pas disponible pour le moment (voir le guide). Pas Gmail (bouton dédié).',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 12),
@@ -206,6 +206,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Comptes connectés', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          const ProviderConnectionGuideSection(),
           const SizedBox(height: 16),
           if (_errorMessage != null)
             Padding(
