@@ -11,14 +11,18 @@ class LoginGateScreen extends StatefulWidget {
 
 class _LoginGateScreenState extends State<LoginGateScreen> {
   final _authService = AppAuthService();
+  final _passwordFocusNode = FocusNode();
+
   bool _loading = true;
   bool _hasCredentials = false;
   bool _authenticated = false;
+  String? _savedUsername;
 
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   String? _errorMessage;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -26,14 +30,32 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
     _check();
   }
 
+  @override
+  void dispose() {
+    _passwordFocusNode.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  /// Le mot de passe est désormais TOUJOURS redemandé au démarrage : pas de
+  /// session persistante. On récupère juste l'identifiant mémorisé pour le
+  /// pré-remplir.
   Future<void> _check() async {
     final has = await _authService.hasCredentials();
-    final sessionActive = has && await _authService.isSessionActive();
+    final username = has ? await _authService.getUsername() : null;
     setState(() {
       _hasCredentials = has;
-      _authenticated = sessionActive;
+      _savedUsername = username;
+      _authenticated = false;
       _loading = false;
     });
+    if (has) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _passwordFocusNode.requestFocus();
+      });
+    }
   }
 
   Future<void> _createCredentials() async {
@@ -45,22 +67,36 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
       setState(() => _errorMessage = 'Les mots de passe ne correspondent pas.');
       return;
     }
+    setState(() => _submitting = true);
     await _authService.setCredentials(_usernameController.text, _passwordController.text);
-    await _authService.setSessionActive(true);
     setState(() {
       _hasCredentials = true;
       _authenticated = true;
       _errorMessage = null;
+      _submitting = false;
     });
   }
 
   Future<void> _login() async {
-    final ok = await _authService.verify(_usernameController.text, _passwordController.text);
+    if (_passwordController.text.isEmpty) {
+      setState(() => _errorMessage = 'Saisissez votre mot de passe.');
+      return;
+    }
+    setState(() => _submitting = true);
+    final ok = await _authService.verifyPassword(_passwordController.text);
+    if (!mounted) return;
     if (ok) {
-      await _authService.setSessionActive(true);
-      setState(() => _authenticated = true);
+      setState(() {
+        _authenticated = true;
+        _submitting = false;
+      });
     } else {
-      setState(() => _errorMessage = 'Identifiant ou mot de passe incorrect.');
+      setState(() {
+        _errorMessage = 'Mot de passe incorrect.';
+        _submitting = false;
+        _passwordController.clear();
+      });
+      _passwordFocusNode.requestFocus();
     }
   }
 
@@ -74,6 +110,8 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
       return widget.child;
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -83,8 +121,15 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.mark_email_read_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.mark_email_read_outlined, size: 36, color: colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   _hasCredentials ? 'Connexion' : 'Créer un accès sécurisé',
                   style: Theme.of(context).textTheme.headlineSmall,
@@ -92,30 +137,70 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
                 const SizedBox(height: 8),
                 if (!_hasCredentials)
                   Text(
-                    'Choisissez un identifiant et un mot de passe pour protéger l\'accès à ce logiciel.',
+                    "Choisissez un identifiant et un mot de passe pour protéger l'accès à ce logiciel.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  )
+                else
+                  Text(
+                    'Mot de passe requis à chaque ouverture du logiciel.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey.shade600),
                   ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(labelText: 'Identifiant', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()),
-                  onSubmitted: (_) => _hasCredentials ? _login() : _createCredentials(),
-                ),
-                if (!_hasCredentials) ...[
+                const SizedBox(height: 28),
+
+                if (_hasCredentials) ...[
+                  // Identifiant déjà connu : affiché en lecture seule,
+                  // seul le mot de passe est à saisir.
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline, size: 20, color: colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _savedUsername ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _passwordController,
+                    focusNode: _passwordFocusNode,
+                    obscureText: true,
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()),
+                    onSubmitted: (_) => _submitting ? null : _login(),
+                  ),
+                ] else ...[
+                  TextField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(labelText: 'Identifiant', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _confirmController,
                     obscureText: true,
                     decoration: const InputDecoration(labelText: 'Confirmer le mot de passe', border: OutlineInputBorder()),
+                    onSubmitted: (_) => _submitting ? null : _createCredentials(),
                   ),
                 ],
+
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -123,9 +208,15 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
                   ),
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: _hasCredentials ? _login : _createCredentials,
+                  onPressed: _submitting ? null : (_hasCredentials ? _login : _createCredentials),
                   style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-                  child: Text(_hasCredentials ? 'Se connecter' : 'Créer et continuer'),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(_hasCredentials ? 'Se connecter' : 'Créer et continuer'),
                 ),
               ],
             ),

@@ -1,74 +1,30 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:path_provider/path_provider.dart';
 
 /// Protège l'accès au logiciel avec un identifiant + mot de passe choisis
 /// par l'utilisateur.
 ///
-/// L'identifiant/mot de passe (sensibles) restent dans le coffre chiffré
-/// (flutter_secure_storage). L'état "session active" (pas sensible en soi,
-/// juste un indicateur "déjà connecté") est stocké dans un simple fichier
-/// local, plus fiable pour la persistance entre redémarrages sur Windows
-/// que le coffre chiffré (bug connu de la bibliothèque sur cette plateforme).
+/// Le mot de passe est désormais redemandé obligatoirement à chaque
+/// ouverture de l'application (aucune session persistante) : dès que
+/// l'application est fermée puis relancée, l'écran de connexion réapparaît.
+/// Seul l'identifiant reste mémorisé pour être pré-rempli et accélérer la
+/// reconnexion.
 class AppAuthService {
   static const _usernameKey = 'app_lock_username';
   static const _passwordHashKey = 'app_lock_password_hash';
   static const _saltKey = 'app_lock_salt';
-  static const sessionDuration = Duration(days: 7);
   final _storage = const FlutterSecureStorage();
 
-  Future<File> _sessionFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File('${dir.path}/session.json');
-  }
-
+  /// Vrai si un identifiant/mot de passe ont déjà été créés.
   Future<bool> hasCredentials() async {
     final username = await _storage.read(key: _usernameKey);
     return username != null && username.isNotEmpty;
   }
 
-  /// Vrai si une session a été ouverte et date de moins de 7 jours.
-  Future<bool> isSessionActive() async {
-    try {
-      final file = await _sessionFile();
-      if (!await file.exists()) return false;
-      final content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-      if (content['active'] != true) return false;
-      final startedAt = DateTime.tryParse(content['startedAt'] as String? ?? '');
-      if (startedAt == null) return false;
-      if (DateTime.now().difference(startedAt) > sessionDuration) {
-        await setSessionActive(false);
-        return false;
-      }
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Date/heure à laquelle la session expirera (null si pas de session active).
-  Future<DateTime?> sessionExpiresAt() async {
-    try {
-      final file = await _sessionFile();
-      if (!await file.exists()) return null;
-      final content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-      final startedAt = DateTime.tryParse(content['startedAt'] as String? ?? '');
-      if (startedAt == null) return null;
-      return startedAt.add(sessionDuration);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> setSessionActive(bool active) async {
-    final file = await _sessionFile();
-    final data = <String, dynamic>{'active': active};
-    if (active) {
-      data['startedAt'] = DateTime.now().toIso8601String();
-    }
-    await file.writeAsString(jsonEncode(data));
+  /// Identifiant mémorisé, pour le pré-remplir à l'écran de connexion.
+  Future<String?> getUsername() async {
+    return _storage.read(key: _usernameKey);
   }
 
   Future<void> setCredentials(String username, String password) async {
@@ -79,6 +35,8 @@ class AppAuthService {
     await _storage.write(key: _passwordHashKey, value: hash);
   }
 
+  /// Vérifie l'identifiant + mot de passe (utilisé pour la création/mise à
+  /// jour des identifiants).
   Future<bool> verify(String username, String password) async {
     final storedUsername = await _storage.read(key: _usernameKey);
     final storedHash = await _storage.read(key: _passwordHashKey);
@@ -88,17 +46,20 @@ class AppAuthService {
     return _hash(password, salt) == storedHash;
   }
 
-  /// Déconnecte : redemandera l'identifiant/mot de passe au prochain accès,
-  /// sans effacer l'identifiant/mot de passe déjà choisis.
-  Future<void> logout() async {
-    await setSessionActive(false);
+  /// Vérifie uniquement le mot de passe : utilisé à l'écran de connexion,
+  /// où l'identifiant est déjà connu et affiché (pas ressaisi).
+  Future<bool> verifyPassword(String password) async {
+    final storedHash = await _storage.read(key: _passwordHashKey);
+    final salt = await _storage.read(key: _saltKey);
+    if (storedHash == null || salt == null) return false;
+    return _hash(password, salt) == storedHash;
   }
 
+  /// Supprime complètement la protection (identifiant + mot de passe).
   Future<void> removeLock() async {
     await _storage.delete(key: _usernameKey);
     await _storage.delete(key: _passwordHashKey);
     await _storage.delete(key: _saltKey);
-    await setSessionActive(false);
   }
 
   String _hash(String password, String salt) {

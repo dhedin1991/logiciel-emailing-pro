@@ -15,18 +15,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
   final _confirmController = TextEditingController();
   String? _statusMessage;
   bool _statusIsError = false;
-  DateTime? _sessionExpiresAt;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSessionInfo();
-  }
-
-  Future<void> _loadSessionInfo() async {
-    final expiresAt = await _authService.sessionExpiresAt();
-    setState(() => _sessionExpiresAt = expiresAt);
-  }
 
   Future<void> _updateCredentials() async {
     if (_usernameController.text.trim().isEmpty || _passwordController.text.isEmpty) {
@@ -51,16 +39,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
       _passwordController.clear();
       _confirmController.clear();
     });
-  }
-
-  Future<void> _logout() async {
-    await _authService.setSessionActive(false);
-    if (mounted) {
-      setState(() {
-        _statusMessage = 'Déconnecté(e). Le mot de passe sera redemandé au prochain démarrage.';
-        _statusIsError = false;
-      });
-    }
   }
 
   Future<void> _removeLock() async {
@@ -100,30 +78,23 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 'Changez l\'identifiant et le mot de passe demandés à l\'ouverture du logiciel.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
-              if (_sessionExpiresAt != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.schedule, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Session valide jusqu\'au '
-                          '${_sessionExpiresAt!.day}/${_sessionExpiresAt!.month}/${_sessionExpiresAt!.year} à '
-                          '${_sessionExpiresAt!.hour.toString().padLeft(2, '0')}:${_sessionExpiresAt!.minute.toString().padLeft(2, '0')} '
-                          '(reconnexion demandée automatiquement après, 7 jours).',
-                        ),
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
+                child: const Row(
+                  children: [
+                    Icon(Icons.verified_user_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Le mot de passe est désormais redemandé à chaque ouverture du logiciel.'),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: _usernameController,
@@ -149,11 +120,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
               const SizedBox(height: 16),
               FilledButton(onPressed: _updateCredentials, child: const Text('Mettre à jour')),
               const SizedBox(height: 24),
-              OutlinedButton(
-                onPressed: _logout,
-                child: const Text('Se déconnecter (redemander le mot de passe au prochain démarrage)'),
-              ),
-              const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _removeLock,
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),

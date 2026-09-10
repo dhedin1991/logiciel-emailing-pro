@@ -11,22 +11,23 @@ import 'screens/bulk_send_progress_panel.dart';
 import 'screens/login_gate_screen.dart';
 import 'services/scheduler_service.dart';
 import 'services/send_jobs_manager.dart';
+import 'services/theme_service.dart';
 
 void main() {
   runApp(const EmailingProApp());
 }
 
-const _brandColor = Color(0xFF2563EB);
-
-ThemeData _buildTheme(Brightness brightness) {
+ThemeData _buildTheme(Brightness brightness, Color seedColor) {
   final base = ThemeData(
-    colorSchemeSeed: _brandColor,
+    colorSchemeSeed: seedColor,
     useMaterial3: true,
     brightness: brightness,
   );
   final textTheme = GoogleFonts.interTextTheme(base.textTheme);
   return base.copyWith(
     textTheme: textTheme,
+    scaffoldBackgroundColor:
+        brightness == Brightness.dark ? base.colorScheme.surface : base.colorScheme.surfaceContainerLowest,
     appBarTheme: AppBarTheme(
       backgroundColor: base.colorScheme.surface,
       foregroundColor: base.colorScheme.onSurface,
@@ -35,20 +36,28 @@ ThemeData _buildTheme(Brightness brightness) {
       centerTitle: false,
       titleTextStyle: GoogleFonts.inter(
         fontSize: 20,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
         color: base.colorScheme.onSurface,
       ),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: base.colorScheme.outlineVariant),
       ),
       margin: const EdgeInsets.symmetric(vertical: 4),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: base.colorScheme.primary, width: 1.5),
+      ),
       filled: true,
       fillColor: base.colorScheme.surfaceContainerLow,
     ),
@@ -56,6 +65,7 @@ ThemeData _buildTheme(Brightness brightness) {
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -64,25 +74,59 @@ ThemeData _buildTheme(Brightness brightness) {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
+    chipTheme: base.chipTheme.copyWith(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      side: BorderSide(color: base.colorScheme.outlineVariant),
+    ),
+    dialogTheme: DialogThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: base.colorScheme.surfaceContainerLow,
       indicatorColor: base.colorScheme.primaryContainer,
+      selectedIconTheme: IconThemeData(color: base.colorScheme.onPrimaryContainer),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: base.colorScheme.primary,
+      unselectedLabelColor: base.colorScheme.onSurfaceVariant,
+      indicatorColor: base.colorScheme.primary,
     ),
   );
 }
 
-class EmailingProApp extends StatelessWidget {
+class EmailingProApp extends StatefulWidget {
   const EmailingProApp({super.key});
 
   @override
+  State<EmailingProApp> createState() => _EmailingProAppState();
+}
+
+class _EmailingProAppState extends State<EmailingProApp> {
+  @override
+  void initState() {
+    super.initState();
+    ThemeService.instance.load();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Emailing Pro',
-      debugShowCheckedModeBanner: false,
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
-      home: const LoginGateScreen(child: HomeShell()),
+    return AnimatedBuilder(
+      animation: ThemeService.instance,
+      builder: (context, _) {
+        final seed = ThemeService.instance.preset.seedColor;
+        return MaterialApp(
+          title: 'Emailing Pro',
+          debugShowCheckedModeBanner: false,
+          theme: _buildTheme(Brightness.light, seed),
+          darkTheme: _buildTheme(Brightness.dark, seed),
+          themeMode: ThemeService.instance.themeMode,
+          home: const LoginGateScreen(child: HomeShell()),
+        );
+      },
     );
   }
 }
