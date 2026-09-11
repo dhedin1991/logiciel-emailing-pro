@@ -5,6 +5,7 @@ import '../services/gmail_auth_service.dart';
 import '../services/smtp_send_service.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/password_field.dart';
 import '../widgets/provider_connection_guide.dart';
 
 class AccountsScreen extends StatefulWidget {
@@ -137,12 +138,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 const SizedBox(height: 12),
                 TextField(controller: hostController, decoration: const InputDecoration(labelText: 'Serveur SMTP', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: portController, decoration: const InputDecoration(labelText: 'Port', border: OutlineInputBorder()), keyboardType: TextInputType.number),
-                const SizedBox(height: 12),
                 TextField(
+                  controller: portController,
+                  decoration: const InputDecoration(labelText: 'Port', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                PasswordField(
                   controller: passwordController,
-                  decoration: const InputDecoration(labelText: 'Mot de passe d\'application', border: OutlineInputBorder()),
-                  obscureText: true,
+                  labelText: 'Mot de passe d\'application',
+                  border: const OutlineInputBorder(),
                 ),
                 if (errorText != null)
                   Padding(

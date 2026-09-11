@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/app_auth_service.dart';
+import '../widgets/password_field.dart';
 
 class LoginGateScreen extends StatefulWidget {
   final Widget child;
@@ -173,12 +174,12 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  PasswordField(
                     controller: _passwordController,
                     focusNode: _passwordFocusNode,
-                    obscureText: true,
                     autofocus: true,
-                    decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()),
+                    labelText: 'Mot de passe',
+                    border: const OutlineInputBorder(),
                     onSubmitted: (_) => _submitting ? null : _login(),
                   ),
                 ] else ...[
@@ -187,16 +188,16 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
                     decoration: const InputDecoration(labelText: 'Identifiant', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  PasswordField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder()),
+                    labelText: 'Mot de passe',
+                    border: const OutlineInputBorder(),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  PasswordField(
                     controller: _confirmController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Confirmer le mot de passe', border: OutlineInputBorder()),
+                    labelText: 'Confirmer le mot de passe',
+                    border: const OutlineInputBorder(),
                     onSubmitted: (_) => _submitting ? null : _createCredentials(),
                   ),
                 ],

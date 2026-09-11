@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/app_auth_service.dart';
+import '../widgets/password_field.dart';
 
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -111,16 +112,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 decoration: const InputDecoration(labelText: 'Nouvel identifiant', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
-              TextField(
+              PasswordField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Nouveau mot de passe', border: OutlineInputBorder()),
+                labelText: 'Nouveau mot de passe',
+                border: const OutlineInputBorder(),
               ),
               const SizedBox(height: 12),
-              TextField(
+              PasswordField(
                 controller: _confirmController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirmer', border: OutlineInputBorder()),
+                labelText: 'Confirmer',
+                border: const OutlineInputBorder(),
               ),
               if (_statusMessage != null)
                 Padding(

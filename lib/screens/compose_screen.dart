@@ -394,11 +394,14 @@ class _ComposeScreenState extends State<ComposeScreen> {
     ));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Envoi lancé en arrière-plan vers ${recipients.length} destinataire(s). '
-          'Vous pouvez continuer à utiliser l\'application — suivez la progression via l\'icône ✉️ en haut.'),
-      duration: const Duration(seconds: 5),
-    ));
+    // Ouvre directement la fenêtre de suivi complète (statuts détaillés,
+    // onglets Destinataires/Journal) au lieu d'un simple message furtif :
+    // l'utilisateur voit tout de suite ce qui est en train d'être envoyé.
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => BulkSendProgressPanel(queue: queue),
+    );
 
     setState(() {
       _selectedContactIds.clear();

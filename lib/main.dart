@@ -42,10 +42,12 @@ ThemeData _buildTheme(Brightness brightness, Color seedColor) {
       ),
     ),
     cardTheme: CardThemeData(
-      elevation: 0,
+      elevation: 1,
+      shadowColor: base.colorScheme.shadow.withValues(alpha: brightness == Brightness.dark ? 0.4 : 0.12),
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: base.colorScheme.outlineVariant),
+        side: BorderSide(color: base.colorScheme.outlineVariant.withValues(alpha: 0.6)),
       ),
       margin: const EdgeInsets.symmetric(vertical: 4),
     ),
@@ -190,10 +192,43 @@ class _HomeShellState extends State<HomeShell> {
       content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
     }
 
+    final onDashboard = _selectedIndex == 0;
+
     final appBar = AppBar(
-      title: Text(_sections[_selectedIndex].label),
+      leading: onDashboard
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Retour au tableau de bord',
+              onPressed: () => setState(() => _selectedIndex = 0),
+            ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onDashboard) ...[
+            Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
+            const SizedBox(width: 10),
+          ],
+          Text(_sections[_selectedIndex].label),
+        ],
+      ),
       actions: const [_SendJobsIndicator(), SizedBox(width: 8)],
     );
+
+    // Bouton retour physique (Android) : depuis n'importe quelle section,
+    // ramène d'abord au tableau de bord au lieu de fermer l'app directement ;
+    // depuis le tableau de bord, un appui supplémentaire quitte l'app.
+    return PopScope(
+      canPop: onDashboard,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() => _selectedIndex = 0);
+      },
+      child: _buildScaffold(context, isWide, appBar, content),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, bool isWide, PreferredSizeWidget appBar, Widget content) {
 
     if (isWide) {
       // Version large écran (Windows) : rail latéral avec en-tête de marque
@@ -209,8 +244,25 @@ class _HomeShellState extends State<HomeShell> {
                   ? NavigationRailLabelType.none
                   : NavigationRailLabelType.all,
               leading: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: MediaQuery.of(context).size.width >= 1100
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 26),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Emailing Pro',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              letterSpacing: -0.2,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 26),
               ),
               destinations: _sections
                   .map((s) => NavigationRailDestination(
