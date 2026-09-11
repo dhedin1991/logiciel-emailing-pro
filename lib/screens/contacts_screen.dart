@@ -10,6 +10,7 @@ import '../services/export_helper.dart';
 import '../services/import_history_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/sort_menu_button.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -34,6 +35,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String _searchQuery = '';
   String? _tagFilter;
   String? _statusFilter;
+  String _sortField = 'name';
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -58,7 +61,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   List<Contact> get _filteredContacts {
-    return _contacts.where((c) {
+    final list = _contacts.where((c) {
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
         final matches = c.name.toLowerCase().contains(q) ||
@@ -71,6 +74,34 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (_statusFilter != null && c.status != _statusFilter) return false;
       return true;
     }).toList();
+
+    int compare(Contact a, Contact b) {
+      switch (_sortField) {
+        case 'email':
+          return a.email.toLowerCase().compareTo(b.email.toLowerCase());
+        case 'company':
+          return a.company.toLowerCase().compareTo(b.company.toLowerCase());
+        case 'status':
+          return a.status.toLowerCase().compareTo(b.status.toLowerCase());
+        case 'name':
+        default:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      }
+    }
+
+    list.sort((a, b) => _sortAscending ? compare(a, b) : compare(b, a));
+    return list;
+  }
+
+  void _setSort(String field) {
+    setState(() {
+      if (_sortField == field) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortField = field;
+        _sortAscending = true;
+      }
+    });
   }
 
   Future<void> _exportContacts() async {
@@ -216,6 +247,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.add),
+                        tooltip: 'Ajouter l\'étiquette',
                         onPressed: () {
                           if (tagInputController.text.trim().isNotEmpty) {
                             setDialogState(() {
@@ -455,6 +487,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 const SizedBox(width: 16),
                 if (_selectedIds.isNotEmpty) Text('${_selectedIds.length} sélectionné(s)'),
                 const Spacer(),
+                SortMenuButton(
+                  currentField: _sortField,
+                  ascending: _sortAscending,
+                  options: const {
+                    'name': 'Nom',
+                    'email': 'E-mail',
+                    'company': 'Entreprise',
+                    'status': 'Statut',
+                  },
+                  onSelected: _setSort,
+                ),
+                const SizedBox(width: 12),
                 TextButton.icon(
                   onPressed: _selectedIds.isEmpty ? null : _deleteSelection,
                   icon: const Icon(Icons.delete_sweep_outlined),
@@ -528,6 +572,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),
+                                tooltip: 'Supprimer le contact',
                                 onPressed: () => _removeContact(contact.id),
                               ),
                             ],

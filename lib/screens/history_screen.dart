@@ -3,6 +3,7 @@ import '../models/sent_email_log.dart';
 import '../services/history_storage.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/sort_menu_button.dart';
 import '../services/export_helper.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -18,6 +19,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _loading = true;
   List<SentEmailLog> _entries = [];
   final Set<String> _selectedIds = {};
+  String _sortField = 'date';
+  bool _sortAscending = false;
+
+  List<SentEmailLog> get _sortedEntries {
+    final list = [..._entries];
+    int compare(SentEmailLog a, SentEmailLog b) {
+      switch (_sortField) {
+        case 'to':
+          return a.to.toLowerCase().compareTo(b.to.toLowerCase());
+        case 'subject':
+          return a.subject.toLowerCase().compareTo(b.subject.toLowerCase());
+        case 'date':
+        default:
+          return a.sentAt.compareTo(b.sentAt);
+      }
+    }
+
+    list.sort((a, b) => _sortAscending ? compare(a, b) : compare(b, a));
+    return list;
+  }
+
+  void _setSort(String field) {
+    setState(() {
+      if (_sortField == field) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortField = field;
+        _sortAscending = true;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -136,7 +168,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 icon: const Icon(Icons.delete_sweep_outlined),
                 label: const Text('Tout effacer'),
               ),
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+              IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualiser', onPressed: _load),
             ],
           ),
           if (_entries.isNotEmpty) ...[
@@ -148,6 +180,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(width: 16),
                 if (_selectedIds.isNotEmpty) Text('${_selectedIds.length} sélectionné(s)'),
                 const Spacer(),
+                SortMenuButton(
+                  currentField: _sortField,
+                  ascending: _sortAscending,
+                  options: const {'date': 'Date', 'to': 'Destinataire', 'subject': 'Objet'},
+                  onSelected: _setSort,
+                ),
+                const SizedBox(width: 12),
                 TextButton.icon(
                   onPressed: _selectedIds.isEmpty ? null : _deleteSelection,
                   icon: const Icon(Icons.delete_outline),
@@ -168,9 +207,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         : 'Les envois échoués ou non aboutis apparaîtront ici.',
                   )
                 : ListView.builder(
-                    itemCount: _entries.length,
+                    itemCount: _sortedEntries.length,
                     itemBuilder: (context, index) {
-                      final entry = _entries[index];
+                      final entry = _sortedEntries[index];
                       final selected = _selectedIds.contains(entry.id);
                       return Card(
                         child: ListTile(

@@ -175,7 +175,7 @@ class _HomeShellState extends State<HomeShell> {
 
     Widget content;
     if (_selectedIndex == 0) {
-      content = const DashboardScreen();
+      content = DashboardScreen(onNavigate: (i) => setState(() => _selectedIndex = i));
     } else if (_selectedIndex == 1) {
       content = const ContactsHomeScreen();
     } else if (_selectedIndex == 2) {
@@ -191,6 +191,12 @@ class _HomeShellState extends State<HomeShell> {
     } else {
       content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
     }
+
+    // Fondu doux entre les sections plutôt qu'un changement brutal.
+    content = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: KeyedSubtree(key: ValueKey(_selectedIndex), child: content),
+    );
 
     final onDashboard = _selectedIndex == 0;
 

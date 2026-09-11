@@ -190,6 +190,7 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
                           onTap: () => _showEditor(existing: list),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Supprimer',
                             onPressed: () => _remove(list.id),
                           ),
                         ),

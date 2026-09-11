@@ -128,6 +128,7 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                           onTap: () => _showEditor(existing: signature),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Supprimer',
                             onPressed: () => _remove(signature.id),
                           ),
                         ),

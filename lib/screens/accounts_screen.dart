@@ -260,6 +260,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                                 ),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),
+                                tooltip: 'Supprimer le compte',
                                 onPressed: () => _removeAccount(account.email),
                               ),
                             ],

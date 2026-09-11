@@ -133,6 +133,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                           onTap: () => _showEditor(existing: template),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Supprimer',
                             onPressed: () => _remove(template.id),
                           ),
                         ),

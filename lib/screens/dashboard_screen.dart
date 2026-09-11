@@ -6,7 +6,8 @@ import '../services/scheduled_email_storage.dart';
 import '../widgets/empty_state.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final ValueChanged<int>? onNavigate;
+  const DashboardScreen({super.key, this.onNavigate});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -18,6 +19,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _sentCount = 0;
   int _errorCount = 0;
   int _scheduledCount = 0;
+  String? _primaryAccountEmail;
   List<SentEmailLog> _recent = [];
 
   @override
@@ -30,8 +32,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final accounts = await AccountStorage().loadAccounts();
     final history = await HistoryStorage().loadAll();
     final scheduled = await ScheduledEmailStorage().loadAll();
+    if (!mounted) return;
     setState(() {
       _accountsCount = accounts.length;
+      _primaryAccountEmail = accounts.isEmpty ? null : accounts.first.email;
       _sentCount = history.where((e) => e.success).length;
       _errorCount = history.where((e) => !e.success).length;
       _scheduledCount = scheduled.where((e) => !e.sent).length;
@@ -51,18 +55,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _StatCard(icon: Icons.alternate_email, label: 'Comptes connectés', value: _accountsCount, color: Colors.blue),
     ];
 
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Bonjour' : (hour < 18 ? 'Bon après-midi' : 'Bonsoir');
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Text('Tableau de bord', style: Theme.of(context).textTheme.headlineSmall)),
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$greeting 👋', style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 4),
+                    Text(
+                      _primaryAccountEmail != null
+                          ? 'Voici l\'activité de $_primaryAccountEmail.'
+                          : 'Connectez un compte pour commencer à envoyer des e-mails.',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualiser', onPressed: _load),
             ],
           ),
           const SizedBox(height: 20),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: () => widget.onNavigate?.call(3),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Nouvel envoi'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => widget.onNavigate?.call(1),
+                icon: const Icon(Icons.person_add_outlined),
+                label: const Text('Ajouter un contact'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => widget.onNavigate?.call(4),
+                icon: const Icon(Icons.history_outlined),
+                label: const Text('Voir l\'historique'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
           Wrap(spacing: 16, runSpacing: 16, children: cards),
           const SizedBox(height: 32),
           Text('Activité récente', style: Theme.of(context).textTheme.titleMedium),

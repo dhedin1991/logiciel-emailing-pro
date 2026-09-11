@@ -96,7 +96,7 @@ class _ImportsHistoryScreenState extends State<ImportsHistoryScreen> {
                 icon: const Icon(Icons.delete_sweep_outlined),
                 label: const Text('Tout effacer'),
               ),
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+              IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualiser', onPressed: _load),
             ],
           ),
           if (_entries.isNotEmpty) ...[
