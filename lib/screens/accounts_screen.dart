@@ -8,6 +8,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/password_field.dart';
 import '../widgets/provider_connection_guide.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/info_notice.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -238,6 +239,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
           const SizedBox(height: 16),
           const ProviderConnectionGuideSection(),
           const SizedBox(height: 16),
+          if (_accounts.any((a) => a.provider == 'gmail')) ...[
+            const InfoNotice(
+              title: 'Volume d\'envoi recommandé',
+              bullets: [
+                'Gmail gratuit : limite officielle de 500 e-mails/jour, mais restez idéalement sous 100 à 150/jour par compte pour préserver sa réputation.',
+                'Pour un plus gros volume, répartissez vos envois entre plusieurs comptes connectés plutôt que de pousser un seul compte à sa limite.',
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
           if (_errorMessage != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),

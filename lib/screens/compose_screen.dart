@@ -20,6 +20,7 @@ import '../services/send_jobs_manager.dart';
 import 'bulk_send_progress_panel.dart';
 import 'email_preview_dialog.dart';
 import 'message_analysis_dialog.dart';
+import '../widgets/info_notice.dart';
 
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({super.key});
@@ -473,6 +474,18 @@ class _ComposeScreenState extends State<ComposeScreen> {
             ),
             const SizedBox(height: 12),
             if (_bulkMode) ...[
+              InfoNotice(
+                title: 'Conseils pour un envoi en masse fiable',
+                bullets: [
+                  if (_selectedAccount?.provider == 'gmail')
+                    'Gmail gratuit : limite officielle de 500 e-mails/jour, mais restez idéalement sous 100 à 150/jour pour préserver la réputation du compte.',
+                  'Espacez les envois (délai réglable ci-dessous) plutôt que d\'envoyer tout d\'un coup.',
+                  'Pour un gros volume, répartissez entre plusieurs comptes connectés plutôt que de pousser un seul compte à sa limite.',
+                  'Personnalisez le contenu plutôt qu\'un message identique pour tous les destinataires.',
+                  'Après l\'envoi, vérifiez le taux d\'échec dans l\'Historique — un taux élevé est un signal d\'alerte à prendre au sérieux.',
+                ],
+              ),
+              const SizedBox(height: 12),
               if (_contactLists.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
