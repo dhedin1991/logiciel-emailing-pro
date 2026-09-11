@@ -28,6 +28,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _load() async {
     final all = await _storage.loadAll();
     final filtered = all.where((e) => e.success == widget.onlySuccess).toList();
+    if (!mounted) return;
     setState(() {
       _entries = filtered;
       _selectedIds.removeWhere((id) => !filtered.any((e) => e.id == id));
@@ -46,11 +47,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
         csvField(e.errorMessage ?? ''),
       ].join(';'));
     }
-    await exportTextFile(
-      content: buffer.toString(),
-      suggestedFileName: widget.onlySuccess ? 'historique_envoyes' : 'historique_echecs',
-      extension: 'csv',
-    );
+    try {
+      final exported = await exportTextFile(
+        content: buffer.toString(),
+        suggestedFileName: widget.onlySuccess ? 'historique_envoyes' : 'historique_echecs',
+        extension: 'csv',
+      );
+      if (!mounted || !exported) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Export terminé.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Échec de l\'export : ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _clearAll() async {
@@ -58,6 +70,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final ok = await confirmDelete(context, '${_entries.length} entrée(s)');
     if (!ok) return;
     await _storage.removeEntries(_entries.map((e) => e.id).toSet());
+    if (!mounted) return;
     setState(() => _selectedIds.clear());
     await _load();
   }
@@ -93,6 +106,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
     if (confirmed != true) return;
     await _storage.removeEntries(_selectedIds);
+    if (!mounted) return;
     setState(() => _selectedIds.clear());
     await _load();
   }

@@ -41,8 +41,15 @@ class _ContactsScreenState extends State<ContactsScreen> {
     _loadContacts();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadContacts() async {
     final contacts = await _storage.loadContacts();
+    if (!mounted) return;
     setState(() {
       _contacts = contacts;
       _selectedIds.removeWhere((id) => !contacts.any((c) => c.id == id));
@@ -79,7 +86,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
         csvField(c.note),
       ].join(';'));
     }
-    await exportTextFile(content: buffer.toString(), suggestedFileName: 'contacts', extension: 'csv');
+    try {
+      final exported = await exportTextFile(content: buffer.toString(), suggestedFileName: 'contacts', extension: 'csv');
+      if (!mounted || !exported) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Export terminé.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Échec de l\'export : ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _importFile() async {
@@ -93,7 +111,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         allowedExtensions: ['csv', 'xlsx', 'txt'],
       );
       if (result == null || result.files.single.path == null) {
-        setState(() => _importing = false);
+        if (mounted) setState(() => _importing = false);
         return;
       }
       final imported = await _importService.importFromFile(result.files.single.path!);
@@ -106,17 +124,19 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ' (${imported.length - added} déjà existant(s))',
       ));
       await _loadContacts();
+      if (!mounted) return;
       setState(() {
         _statusMessage = '$added contact(s) ajouté(s) (${imported.length - added} déjà existant(s) ignoré(s)).';
         _statusIsError = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _statusMessage = "Échec de l'import : ${e.toString()}";
         _statusIsError = true;
       });
     } finally {
-      setState(() => _importing = false);
+      if (mounted) setState(() => _importing = false);
     }
   }
 
@@ -259,6 +279,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
       }
       await _loadContacts();
     }
+    nameController.dispose();
+    emailController.dispose();
+    companyController.dispose();
+    noteController.dispose();
+    tagInputController.dispose();
   }
 
   Future<void> _showHistoryFor(Contact contact) async {
@@ -330,6 +355,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
     if (confirmed != true) return;
     await _storage.removeContacts(_selectedIds);
+    if (!mounted) return;
     setState(() => _selectedIds.clear());
     await _loadContacts();
   }

@@ -1,12 +1,9 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/email_cleaning_models.dart';
 import '../services/cleaning_lists_storage.dart';
 import '../services/email_cleaning_service.dart';
+import '../services/export_helper.dart';
 import '../services/import_history_storage.dart';
 import 'package:uuid/uuid.dart';
 
@@ -26,6 +23,12 @@ class _EmailCleaningScreenState extends State<EmailCleaningScreen> {
   CleaningResult? _result;
   String? _copiedMessage;
 
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
   Future<void> _analyze() async {
     if (_textController.text.trim().isEmpty) return;
     setState(() {
@@ -39,6 +42,7 @@ class _EmailCleaningScreenState extends State<EmailCleaningScreen> {
       genericPrefixes: genericPrefixes,
       disposableDomains: disposableDomains,
     ));
+    if (!mounted) return;
     setState(() {
       _result = result;
       _processing = false;
@@ -64,29 +68,28 @@ class _EmailCleaningScreenState extends State<EmailCleaningScreen> {
   Future<void> _copy(List<ClassifiedEmail> list, String label) async {
     final text = list.map((e) => e.normalized).join('\n');
     await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
     setState(() => _copiedMessage = '${list.length} adresse(s) ($label) copiée(s) dans le presse-papiers.');
   }
 
-  Future<void> _writeIfNeeded(String? path, Uint8List bytes) async {
-    if (path == null) return;
+  Future<void> _showExportFeedback(Future<bool> Function() export) async {
     try {
-      final file = File(path);
-      if (!await file.exists() || await file.length() == 0) {
-        await file.writeAsBytes(bytes);
-      }
-    } catch (_) {}
+      final exported = await export();
+      if (!mounted || !exported) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export terminé.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Échec de l\'export : ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _exportTxt(List<ClassifiedEmail> list, String suggestedName) async {
     final text = list.map((e) => e.normalized).join('\n');
-    final bytes = Uint8List.fromList(utf8.encode(text));
-    final path = await FilePicker.platform.saveFile(
-      fileName: '$suggestedName.txt',
-      bytes: bytes,
-      type: FileType.custom,
-      allowedExtensions: ['txt'],
+    await _showExportFeedback(
+      () => exportTextFile(content: text, suggestedFileName: suggestedName, extension: 'txt'),
     );
-    await _writeIfNeeded(path, bytes);
   }
 
   Future<void> _exportCsv(CleaningResult result, String suggestedName) async {
@@ -101,14 +104,9 @@ class _EmailCleaningScreenState extends State<EmailCleaningScreen> {
     writeRows(result.generic, 'Generique/technique');
     writeRows(result.disposable, 'Domaine jetable');
 
-    final bytes = Uint8List.fromList(utf8.encode(buffer.toString()));
-    final path = await FilePicker.platform.saveFile(
-      fileName: '$suggestedName.csv',
-      bytes: bytes,
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
+    await _showExportFeedback(
+      () => exportTextFile(content: buffer.toString(), suggestedFileName: suggestedName, extension: 'csv'),
     );
-    await _writeIfNeeded(path, bytes);
   }
 
   @override

@@ -26,6 +26,7 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
 
   Future<void> _load() async {
     final signatures = await _storage.loadSignatures();
+    if (!mounted) return;
     setState(() {
       _signatures = signatures;
       _loading = false;
@@ -77,6 +78,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       }
       await _load();
     }
+    nameController.dispose();
+    contentController.dispose();
   }
 
   Future<void> _remove(String id) async {

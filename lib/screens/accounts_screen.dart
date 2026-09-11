@@ -31,6 +31,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Future<void> _loadAccounts() async {
     final accounts = await _storage.loadAccounts();
+    if (!mounted) return;
     setState(() {
       _accounts = accounts;
       _loading = false;
@@ -47,13 +48,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
       await _storage.addOrUpdateAccount(account);
       await _loadAccounts();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Connexion impossible : ${e.toString()}';
       });
     } finally {
-      setState(() {
-        _connecting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _connecting = false;
+        });
+      }
     }
   }
 
@@ -64,6 +68,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     });
     try {
       final account = await _gmailAuth.connectAccount();
+      if (!mounted) return;
       if (account.email != email) {
         setState(() {
           _errorMessage =
@@ -74,13 +79,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
         await _loadAccounts();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Reconnexion impossible : ${e.toString()}';
       });
     } finally {
-      setState(() {
-        _connecting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _connecting = false;
+        });
+      }
     }
   }
 
@@ -175,11 +183,17 @@ class _AccountsScreenState extends State<AccountsScreen> {
       await _storage.addOrUpdateAccount(account);
       await _loadAccounts();
     }
+    hostController.dispose();
+    portController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    nameController.dispose();
   }
 
   Future<void> _removeAccount(String email) async {
     if (!await confirmDelete(context, email)) return;
     await _storage.removeAccount(email);
+    if (!mounted) return;
     await _loadAccounts();
   }
 

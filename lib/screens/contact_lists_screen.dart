@@ -35,6 +35,7 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
   Future<void> _load() async {
     final lists = await _listStorage.loadAll();
     final contacts = await _contactStorage.loadContacts();
+    if (!mounted) return;
     setState(() {
       _lists = lists;
       _contacts = contacts;
@@ -140,6 +141,7 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
       }
       await _load();
     }
+    nameController.dispose();
   }
 
   Future<void> _remove(String id) async {

@@ -24,6 +24,7 @@ class _ImportsHistoryScreenState extends State<ImportsHistoryScreen> {
 
   Future<void> _load() async {
     final entries = await _storage.loadAll();
+    if (!mounted) return;
     setState(() {
       _entries = entries;
       _selectedIds.removeWhere((id) => !entries.any((e) => e.id == id));
@@ -36,6 +37,7 @@ class _ImportsHistoryScreenState extends State<ImportsHistoryScreen> {
     final ok = await confirmDelete(context, 'tout l\'historique des imports (${_entries.length} entrées)');
     if (!ok) return;
     await _storage.clearAll();
+    if (!mounted) return;
     setState(() => _selectedIds.clear());
     await _load();
   }
@@ -71,6 +73,7 @@ class _ImportsHistoryScreenState extends State<ImportsHistoryScreen> {
     );
     if (confirmed != true) return;
     await _storage.removeEntries(_selectedIds);
+    if (!mounted) return;
     setState(() => _selectedIds.clear());
     await _load();
   }

@@ -25,10 +25,17 @@ class _SyncScreenState extends State<SyncScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _codeInputController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     final code = await _syncService.getOrCreateSyncCode();
     final lastBackup = await _syncService.lastBackupAt();
     final reminderDays = await _syncService.reminderFrequencyDays();
+    if (!mounted) return;
     setState(() {
       _syncCode = code;
       _lastBackupAt = lastBackup;
@@ -45,18 +52,20 @@ class _SyncScreenState extends State<SyncScreen> {
     try {
       await _syncService.pushAll();
       final lastBackup = await _syncService.lastBackupAt();
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Contacts, modèles et signatures envoyés vers le cloud.';
         _statusIsError = false;
         _lastBackupAt = lastBackup;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Échec : ${e.toString()}';
         _statusIsError = true;
       });
     } finally {
-      setState(() => _busy = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -67,17 +76,19 @@ class _SyncScreenState extends State<SyncScreen> {
     });
     try {
       await _syncService.pullAll();
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Contacts, modèles et signatures récupérés depuis le cloud.';
         _statusIsError = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Échec : ${e.toString()}';
         _statusIsError = true;
       });
     } finally {
-      setState(() => _busy = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -85,6 +96,7 @@ class _SyncScreenState extends State<SyncScreen> {
     if (_codeInputController.text.trim().isEmpty) return;
     await _syncService.setSyncCode(_codeInputController.text);
     await _load();
+    if (!mounted) return;
     setState(() {
       _statusMessage = 'Appareil lié. Cliquez "Récupérer depuis le cloud" pour importer vos données.';
       _statusIsError = false;

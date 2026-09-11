@@ -26,6 +26,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
 
   Future<void> _load() async {
     final templates = await _storage.loadTemplates();
+    if (!mounted) return;
     setState(() {
       _templates = templates;
       _loading = false;
@@ -81,6 +82,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       }
       await _load();
     }
+    nameController.dispose();
+    subjectController.dispose();
+    bodyController.dispose();
   }
 
   Future<void> _remove(String id) async {

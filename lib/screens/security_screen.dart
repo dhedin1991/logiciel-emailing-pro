@@ -16,6 +16,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
   String? _statusMessage;
   bool _statusIsError = false;
 
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
   Future<void> _updateCredentials() async {
     if (_usernameController.text.trim().isEmpty || _passwordController.text.isEmpty) {
       setState(() {
@@ -32,6 +40,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
       return;
     }
     await _authService.setCredentials(_usernameController.text, _passwordController.text);
+    if (!mounted) return;
     setState(() {
       _statusMessage = 'Identifiant et mot de passe mis à jour.';
       _statusIsError = false;
@@ -55,6 +64,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
     if (confirmed == true) {
       await _authService.removeLock();
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Protection désactivée. Redémarrez l\'application pour une nouvelle configuration.';
         _statusIsError = false;
