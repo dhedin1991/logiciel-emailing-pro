@@ -4,6 +4,7 @@ import '../models/signature.dart';
 import '../services/signature_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/skeleton_loader.dart';
 
 class SignaturesScreen extends StatefulWidget {
   const SignaturesScreen({super.key});
@@ -84,14 +85,23 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
 
   Future<void> _remove(String id) async {
     final signature = _signatures.firstWhere((s) => s.id == id);
-    if (!await confirmDelete(context, signature.name)) return;
-    await _storage.removeSignature(id);
-    await _load();
+    await deleteWithUndo(
+      context: context,
+      itemLabel: signature.name,
+      onDelete: () async {
+        await _storage.removeSignature(id);
+        await _load();
+      },
+      onUndo: () async {
+        await _storage.addSignature(signature);
+        await _load();
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
 
     return Padding(
       padding: const EdgeInsets.all(24),

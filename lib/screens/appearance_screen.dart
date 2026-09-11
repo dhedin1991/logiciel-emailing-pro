@@ -1,8 +1,40 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../services/theme_service.dart';
 
-class AppearanceScreen extends StatelessWidget {
+class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
+
+  @override
+  State<AppearanceScreen> createState() => _AppearanceScreenState();
+}
+
+class _AppearanceScreenState extends State<AppearanceScreen> {
+  bool _busy = false;
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+    setState(() => _busy = true);
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final ext = (result.files.single.extension ?? 'png').toLowerCase();
+      final dest = File('${dir.path}/custom_logo.$ext');
+      await dest.writeAsBytes(result.files.single.bytes!);
+      await ThemeService.instance.setCustomLogoPath(dest.path);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _removeLogo() async {
+    await ThemeService.instance.setCustomLogoPath(null);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +107,43 @@ class AppearanceScreen extends StatelessWidget {
                         onTap: () => theme.setPreset(p.id),
                       );
                     },
+                  ),
+                  const SizedBox(height: 32),
+                  Text('Logo personnalisé', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Affiché à la place de l\'icône par défaut, dans la barre du haut et le menu latéral.',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (theme.customLogoPath != null && File(theme.customLogoPath!).existsSync())
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(File(theme.customLogoPath!), width: 48, height: 48, fit: BoxFit.cover),
+                        )
+                      else
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                        ),
+                      const SizedBox(width: 16),
+                      OutlinedButton.icon(
+                        onPressed: _busy ? null : _pickLogo,
+                        icon: const Icon(Icons.upload_outlined),
+                        label: Text(_busy ? 'Chargement...' : 'Choisir une image'),
+                      ),
+                      if (theme.customLogoPath != null) ...[
+                        const SizedBox(width: 8),
+                        TextButton(onPressed: _removeLogo, child: const Text('Retirer')),
+                      ],
+                    ],
                   ),
                 ],
               ),

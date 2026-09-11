@@ -7,6 +7,7 @@ import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/password_field.dart';
 import '../widgets/provider_connection_guide.dart';
+import '../widgets/skeleton_loader.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -196,10 +197,19 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Future<void> _removeAccount(String email) async {
-    if (!await confirmDelete(context, email)) return;
-    await _storage.removeAccount(email);
-    if (!mounted) return;
-    await _loadAccounts();
+    final account = _accounts.firstWhere((a) => a.email == email);
+    await deleteWithUndo(
+      context: context,
+      itemLabel: email,
+      onDelete: () async {
+        await _storage.removeAccount(email);
+        await _loadAccounts();
+      },
+      onUndo: () async {
+        await _storage.addOrUpdateAccount(account);
+        await _loadAccounts();
+      },
+    );
   }
 
   String _providerLabel(String provider) {
@@ -216,7 +226,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonListLoader();
     }
 
     return Padding(

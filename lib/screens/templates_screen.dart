@@ -4,6 +4,7 @@ import '../models/message_template.dart';
 import '../services/template_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/skeleton_loader.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
@@ -89,14 +90,23 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
 
   Future<void> _remove(String id) async {
     final template = _templates.firstWhere((t) => t.id == id);
-    if (!await confirmDelete(context, template.name)) return;
-    await _storage.removeTemplate(id);
-    await _load();
+    await deleteWithUndo(
+      context: context,
+      itemLabel: template.name,
+      onDelete: () async {
+        await _storage.removeTemplate(id);
+        await _load();
+      },
+      onUndo: () async {
+        await _storage.addTemplate(template);
+        await _load();
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
 
     return Padding(
       padding: const EdgeInsets.all(24),

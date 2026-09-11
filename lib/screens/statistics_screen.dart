@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/history_storage.dart';
+import '../widgets/skeleton_loader.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -57,7 +58,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
 
     final maxDay = _byDay.map((e) => e.value).fold(0, (a, b) => a > b ? a : b);
     final maxAccount = _byAccount.isEmpty ? 0 : _byAccount.map((e) => e.value).reduce((a, b) => a > b ? a : b);

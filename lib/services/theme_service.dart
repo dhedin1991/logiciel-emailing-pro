@@ -34,10 +34,12 @@ class ThemeService extends ChangeNotifier {
 
   String _presetId = 'blue';
   AppBrightnessMode _mode = AppBrightnessMode.system;
+  String? _customLogoPath;
   bool _loaded = false;
 
   String get presetId => _presetId;
   AppBrightnessMode get mode => _mode;
+  String? get customLogoPath => _customLogoPath;
 
   AppThemePreset get preset =>
       appThemePresets.firstWhere((p) => p.id == _presetId, orElse: () => appThemePresets.first);
@@ -73,6 +75,7 @@ class ThemeService extends ChangeNotifier {
           (m) => m.name == data['mode'],
           orElse: () => AppBrightnessMode.system,
         );
+        _customLogoPath = data['customLogoPath'] as String?;
       }
     } catch (_) {
       // Valeurs par défaut si le fichier est absent ou corrompu.
@@ -84,7 +87,11 @@ class ThemeService extends ChangeNotifier {
   Future<void> _save() async {
     try {
       final file = await _file();
-      await file.writeAsString(jsonEncode({'presetId': _presetId, 'mode': _mode.name}));
+      await file.writeAsString(jsonEncode({
+        'presetId': _presetId,
+        'mode': _mode.name,
+        'customLogoPath': _customLogoPath,
+      }));
     } catch (_) {
       // Non bloquant : le choix reste actif pour la session en cours.
     }
@@ -100,6 +107,14 @@ class ThemeService extends ChangeNotifier {
   Future<void> setMode(AppBrightnessMode mode) async {
     if (_mode == mode) return;
     _mode = mode;
+    notifyListeners();
+    await _save();
+  }
+
+  /// Enregistre le chemin d'un logo personnalisé (image déjà copiée dans le
+  /// dossier de l'application) à afficher à la place de l'icône par défaut.
+  Future<void> setCustomLogoPath(String? path) async {
+    _customLogoPath = path;
     notifyListeners();
     await _save();
   }

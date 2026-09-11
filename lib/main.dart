@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/compose_screen.dart';
@@ -108,10 +109,23 @@ class EmailingProApp extends StatefulWidget {
 }
 
 class _EmailingProAppState extends State<EmailingProApp> {
+  bool _showSplash = true;
+
   @override
   void initState() {
     super.initState();
-    ThemeService.instance.load();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final stopwatch = Stopwatch()..start();
+    await ThemeService.instance.load();
+    // Durée minimale d'affichage pour que le logo soit bien visible, même
+    // si le chargement est quasi instantané.
+    final remaining = const Duration(milliseconds: 900) - stopwatch.elapsed;
+    if (remaining > Duration.zero) await Future.delayed(remaining);
+    if (!mounted) return;
+    setState(() => _showSplash = false);
   }
 
   @override
@@ -126,9 +140,54 @@ class _EmailingProAppState extends State<EmailingProApp> {
           theme: _buildTheme(Brightness.light, seed),
           darkTheme: _buildTheme(Brightness.dark, seed),
           themeMode: ThemeService.instance.themeMode,
-          home: const LoginGateScreen(child: HomeShell()),
+          home: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            child: _showSplash ? const _SplashScreen(key: ValueKey('splash')) : const LoginGateScreen(key: ValueKey('app'), child: HomeShell()),
+          ),
         );
       },
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final logoPath = ThemeService.instance.customLogoPath;
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (logoPath != null && File(logoPath).existsSync())
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.file(File(logoPath), width: 84, height: 84, fit: BoxFit.cover),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(color: colorScheme.primaryContainer, shape: BoxShape.circle),
+                child: Icon(Icons.mark_email_read_outlined, size: 44, color: colorScheme.onPrimaryContainer),
+              ),
+            const SizedBox(height: 20),
+            Text(
+              'Emailing Pro',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: colorScheme.onSurface),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.4, color: colorScheme.primary),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -212,7 +271,7 @@ class _HomeShellState extends State<HomeShell> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (onDashboard) ...[
-            Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
+            _BrandMark(size: 22),
             const SizedBox(width: 10),
           ],
           Text(_sections[_selectedIndex].label),
@@ -255,7 +314,7 @@ class _HomeShellState extends State<HomeShell> {
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 26),
+                          _BrandMark(size: 26),
                           const SizedBox(width: 10),
                           Text(
                             'Emailing Pro',
@@ -268,7 +327,7 @@ class _HomeShellState extends State<HomeShell> {
                           ),
                         ],
                       )
-                    : Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 26),
+                    : _BrandMark(size: 26),
               ),
               destinations: _sections
                   .map((s) => NavigationRailDestination(
@@ -297,7 +356,7 @@ class _HomeShellState extends State<HomeShell> {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
+                    _BrandMark(size: 28),
                     const SizedBox(width: 12),
                     Text('Emailing Pro', style: Theme.of(context).textTheme.titleLarge),
                   ],
@@ -335,6 +394,25 @@ class _HomeShellState extends State<HomeShell> {
       ),
       body: content,
     );
+  }
+}
+
+/// Icône de marque affichée dans la barre du haut, le menu latéral et le
+/// tiroir : le logo personnalisé s'il est défini, sinon l'icône par défaut.
+class _BrandMark extends StatelessWidget {
+  final double size;
+  const _BrandMark({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final path = ThemeService.instance.customLogoPath;
+    if (path != null && File(path).existsSync()) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.22),
+        child: Image.file(File(path), width: size, height: size, fit: BoxFit.cover),
+      );
+    }
+    return Icon(Icons.mark_email_read_outlined, color: Theme.of(context).colorScheme.primary, size: size);
   }
 }
 

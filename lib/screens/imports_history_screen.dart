@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/import_history_storage.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/confirm_delete.dart';
+import '../widgets/skeleton_loader.dart';
 
 class ImportsHistoryScreen extends StatefulWidget {
   const ImportsHistoryScreen({super.key});
@@ -80,7 +81,7 @@ class _ImportsHistoryScreenState extends State<ImportsHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
     final allSelected = _entries.isNotEmpty && _selectedIds.length == _entries.length;
 
     return Padding(

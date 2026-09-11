@@ -4,6 +4,7 @@ import '../services/account_storage.dart';
 import '../services/history_storage.dart';
 import '../services/scheduled_email_storage.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/skeleton_loader.dart';
 
 class DashboardScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
@@ -46,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
 
     final cards = [
       _StatCard(icon: Icons.send, label: 'E-mails envoyés', value: _sentCount, color: Colors.green),

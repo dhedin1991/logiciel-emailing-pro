@@ -5,6 +5,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/sort_menu_button.dart';
 import '../services/export_helper.dart';
+import '../widgets/skeleton_loader.dart';
 
 class HistoryScreen extends StatefulWidget {
   final bool onlySuccess;
@@ -145,7 +146,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
 
     final allSelected = _entries.isNotEmpty && _selectedIds.length == _entries.length;
     final title = widget.onlySuccess ? 'E-mails envoyés' : 'E-mails non envoyés / échecs';

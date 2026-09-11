@@ -11,6 +11,7 @@ import '../services/import_history_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/sort_menu_button.dart';
+import '../widgets/skeleton_loader.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -352,9 +353,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _removeContact(String id) async {
     final contact = _contacts.firstWhere((c) => c.id == id);
-    if (!await confirmDelete(context, contact.name)) return;
-    await _storage.removeContact(id);
-    await _loadContacts();
+    await deleteWithUndo(
+      context: context,
+      itemLabel: contact.name,
+      onDelete: () async {
+        await _storage.removeContact(id);
+        await _loadContacts();
+      },
+      onUndo: () async {
+        await _storage.addContact(contact);
+        await _loadContacts();
+      },
+    );
   }
 
   void _toggleSelectAll(bool? checked) {
@@ -395,7 +405,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonListLoader();
     }
 
     final visible = _filteredContacts;

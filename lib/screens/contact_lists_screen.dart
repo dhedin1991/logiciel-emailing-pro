@@ -8,6 +8,7 @@ import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/skeleton_loader.dart';
 
 class ContactListsScreen extends StatefulWidget {
   const ContactListsScreen({super.key});
@@ -146,14 +147,23 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
 
   Future<void> _remove(String id) async {
     final list = _lists.firstWhere((l) => l.id == id);
-    if (!await confirmDelete(context, list.name)) return;
-    await _listStorage.remove(id);
-    await _load();
+    await deleteWithUndo(
+      context: context,
+      itemLabel: list.name,
+      onDelete: () async {
+        await _listStorage.remove(id);
+        await _load();
+      },
+      onUndo: () async {
+        await _listStorage.add(list);
+        await _load();
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const SkeletonListLoader();
 
     return Padding(
       padding: const EdgeInsets.all(24),
