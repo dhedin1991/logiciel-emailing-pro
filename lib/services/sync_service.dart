@@ -15,8 +15,8 @@ import 'signature_storage.dart';
 /// reconnecter à Gmail séparément, pour ne jamais faire transiter de jeton
 /// sensible par une base de données à accès partagé.
 class SyncService {
-  static const _supabaseUrl = 'https://pzaxvakslnbcuirxyuua.supabase.co';
-  static const _apiKey = 'sb_publishable_cyHiezfqAmtF2bHv_iQROg_6uJU1PJd';
+  static const _supabaseUrl = 'https://dgpdmiqobgrcszmjyuhi.supabase.co';
+  static const _apiKey = 'sb_publishable_LCSAjO9CVdMIQ-hx0OlGZA_Z4bndveU';
 
   final _secureStorage = const FlutterSecureStorage();
   final _uuid = const Uuid();
