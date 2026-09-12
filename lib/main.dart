@@ -142,7 +142,7 @@ class _EmailingProAppState extends State<EmailingProApp> {
           themeMode: ThemeService.instance.themeMode,
           home: AnimatedSwitcher(
             duration: const Duration(milliseconds: 350),
-            child: _showSplash ? const _SplashScreen(key: ValueKey('splash')) : const LoginGateScreen(key: ValueKey('app'), child: HomeShell()),
+            child: _showSplash ? _SplashScreen(key: const ValueKey('splash')) : const LoginGateScreen(key: ValueKey('app'), child: HomeShell()),
           ),
         );
       },

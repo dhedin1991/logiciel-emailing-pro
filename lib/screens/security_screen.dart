@@ -33,6 +33,13 @@ class _SecurityScreenState extends State<SecurityScreen> {
       });
       return;
     }
+    if (_passwordController.text.length < 4) {
+      setState(() {
+        _statusMessage = 'Le mot de passe doit contenir au moins 4 caractères.';
+        _statusIsError = true;
+      });
+      return;
+    }
     if (_passwordController.text != _confirmController.text) {
       setState(() {
         _statusMessage = 'Les mots de passe ne correspondent pas.';

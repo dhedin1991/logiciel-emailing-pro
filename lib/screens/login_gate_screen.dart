@@ -64,12 +64,17 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
       setState(() => _errorMessage = 'Remplissez tous les champs.');
       return;
     }
+    if (_passwordController.text.length < 4) {
+      setState(() => _errorMessage = 'Le mot de passe doit contenir au moins 4 caractères.');
+      return;
+    }
     if (_passwordController.text != _confirmController.text) {
       setState(() => _errorMessage = 'Les mots de passe ne correspondent pas.');
       return;
     }
     setState(() => _submitting = true);
     await _authService.setCredentials(_usernameController.text, _passwordController.text);
+    if (!mounted) return;
     setState(() {
       _hasCredentials = true;
       _authenticated = true;

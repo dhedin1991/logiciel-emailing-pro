@@ -20,6 +20,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       withData: true,
     );
     if (result == null || result.files.single.bytes == null) return;
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       final dir = await getApplicationSupportDirectory();

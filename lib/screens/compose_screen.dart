@@ -78,6 +78,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final signatures = await _signatureStorage.loadSignatures();
     final contacts = await _contactStorage.loadContacts();
     final contactLists = await _contactListStorage.loadAll();
+    if (!mounted) return;
     setState(() {
       _accounts = accounts;
       _selectedAccount = accounts.isNotEmpty ? accounts.first : null;
@@ -139,6 +140,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
 
     if (result != null && result.isNotEmpty) {
+      if (!mounted) return;
       final existing = _toController.text.trim();
       final joined = result.join(', ');
       setState(() {
@@ -161,7 +163,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   Future<void> _pickAttachments() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result == null) return;
+    if (result == null || !mounted) return;
     setState(() {
       for (final file in result.files) {
         if (file.path != null && !_attachmentPaths.contains(file.path)) {
@@ -187,7 +189,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 5))),
     );
-    if (time == null) return;
+    if (time == null || !mounted) return;
     setState(() {
       _scheduledFor = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
@@ -211,6 +213,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         attachmentPaths: List.of(_attachmentPaths),
         sendAt: _scheduledFor!,
       ));
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Envoi programmé pour le '
             '${_scheduledFor!.day}/${_scheduledFor!.month}/${_scheduledFor!.year} à '
@@ -224,7 +227,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _scheduledFor = null;
       });
     } finally {
-      setState(() => _sending = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -305,6 +308,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         body: bodyWithSignature,
         attachmentPaths: List.of(_attachmentPaths),
       );
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'E-mail envoyé avec succès.';
         _statusIsError = false;
@@ -315,12 +319,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _attachmentPaths.clear();
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _statusMessage = "Échec de l'envoi : ${e.toString()}";
         _statusIsError = true;
       });
     } finally {
-      setState(() => _sending = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
