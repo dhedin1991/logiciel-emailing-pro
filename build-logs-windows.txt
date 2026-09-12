@@ -1,2 +1,2 @@
-Building Windows application...                                   107.4s
+Building Windows application...                                   106.7s
 √ Built build\windows\x64\runner\Release\logiciel_emailing_pro.exe
