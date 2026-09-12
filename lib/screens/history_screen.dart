@@ -207,15 +207,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ? 'Vos e-mails envoyés avec succès apparaîtront ici.'
                         : 'Les envois échoués ou non aboutis apparaîtront ici.',
                   )
-                : ListView.builder(
-                    itemCount: _sortedEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = _sortedEntries[index];
-                      final selected = _selectedIds.contains(entry.id);
-                      return Card(
-                        child: ListTile(
-                          leading: Checkbox(
-                            value: selected,
+                : Builder(
+                    builder: (context) {
+                      final sorted = _sortedEntries;
+                      return ListView.builder(
+                        itemCount: sorted.length,
+                        itemBuilder: (context, index) {
+                          final entry = sorted[index];
+                          final selected = _selectedIds.contains(entry.id);
+                          return Card(
+                            child: ListTile(
+                              leading: Checkbox(
+                                value: selected,
                             onChanged: (checked) => setState(() {
                               if (checked == true) {
                                 _selectedIds.add(entry.id);
@@ -235,6 +238,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             color: entry.success ? Colors.green : Colors.red,
                           ),
                         ),
+                          );
+                        },
                       );
                     },
                   ),
