@@ -36,6 +36,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String _searchQuery = '';
   String? _tagFilter;
   String? _statusFilter;
+  String? _countryFilter;
+  String? _dateFilter;
   String _sortField = 'name';
   bool _sortAscending = true;
 
@@ -73,6 +75,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
       }
       if (_tagFilter != null && !c.tags.contains(_tagFilter)) return false;
       if (_statusFilter != null && c.status != _statusFilter) return false;
+      if (_countryFilter != null && c.country != _countryFilter) return false;
+      if (_dateFilter != null) {
+        final days = int.parse(_dateFilter!);
+        if (DateTime.now().difference(c.createdAt).inDays > days) return false;
+      }
       return true;
     }).toList();
 
@@ -129,6 +136,23 @@ class _ContactsScreenState extends State<ContactsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Échec de l\'export : ${e.toString()}')),
       );
+    }
+  }
+
+  Future<void> _exportContactsExcel() async {
+    try {
+      final exported = await exportExcelFile(
+        headers: const ['Nom', 'Email', 'Entreprise', 'Téléphone', 'Statut', 'Étiquettes', 'Note'],
+        rows: _filteredContacts
+            .map((c) => [c.name, c.email, c.company, c.phone, c.status, c.tags.join(', '), c.note])
+            .toList(),
+        suggestedFileName: 'contacts',
+      );
+      if (!mounted || !exported) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export terminé.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Échec de l\'export : ${e.toString()}')));
     }
   }
 
@@ -411,6 +435,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final visible = _filteredContacts;
     final allSelected = visible.isNotEmpty && visible.every((c) => _selectedIds.contains(c.id));
     final allTags = _contacts.expand((c) => c.tags).toSet().toList()..sort();
+    final allCountries = _contacts.map((c) => c.country).whereType<String>().toSet().toList()..sort();
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -427,6 +452,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 onPressed: _contacts.isEmpty ? null : _exportContacts,
                 icon: const Icon(Icons.download),
                 label: const Text('Exporter CSV'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _contacts.isEmpty ? null : _exportContactsExcel,
+                icon: const Icon(Icons.table_chart_outlined),
+                label: const Text('Exporter Excel'),
               ),
               const SizedBox(width: 12),
               OutlinedButton.icon(
@@ -464,7 +495,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   onChanged: (value) => setState(() => _searchQuery = value),
                 ),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               DropdownButton<String?>(
                 hint: const Text('Étiquette'),
                 value: _tagFilter,
@@ -485,6 +523,26 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   DropdownMenuItem(value: 'Ne plus contacter', child: Text('Ne plus contacter')),
                 ],
                 onChanged: (value) => setState(() => _statusFilter = value),
+              ),
+              DropdownButton<String?>(
+                hint: const Text('Pays'),
+                value: _countryFilter,
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Tous les pays')),
+                  ...allCountries.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                ],
+                onChanged: (value) => setState(() => _countryFilter = value),
+              ),
+              DropdownButton<String?>(
+                hint: const Text('Ajoutés'),
+                value: _dateFilter,
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('À tout moment')),
+                  DropdownMenuItem(value: '7', child: Text('7 derniers jours')),
+                  DropdownMenuItem(value: '30', child: Text('30 derniers jours')),
+                  DropdownMenuItem(value: '90', child: Text('90 derniers jours')),
+                ],
+                onChanged: (value) => setState(() => _dateFilter = value),
               ),
             ],
           ),

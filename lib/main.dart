@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +14,7 @@ import 'screens/login_gate_screen.dart';
 import 'services/scheduler_service.dart';
 import 'services/send_jobs_manager.dart';
 import 'services/theme_service.dart';
+import 'services/local_backup_service.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -120,6 +122,9 @@ class _EmailingProAppState extends State<EmailingProApp> {
   Future<void> _init() async {
     final stopwatch = Stopwatch()..start();
     await ThemeService.instance.load();
+    // Sauvegarde locale automatique (silencieuse, non bloquante) : ne
+    // retarde jamais le démarrage même en cas de lenteur ou d'erreur.
+    unawaited(LocalBackupService().backupIfNeeded());
     // Durée minimale d'affichage pour que le logo soit bien visible, même
     // si le chargement est quasi instantané.
     final remaining = const Duration(milliseconds: 900) - stopwatch.elapsed;

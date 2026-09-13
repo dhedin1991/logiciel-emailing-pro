@@ -5,6 +5,7 @@ import '../services/signature_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/sort_menu_button.dart';
 
 class SignaturesScreen extends StatefulWidget {
   const SignaturesScreen({super.key});
@@ -18,6 +19,28 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
   final _uuid = const Uuid();
   List<Signature> _signatures = [];
   bool _loading = true;
+  String _searchQuery = '';
+  String _sortField = 'name';
+  bool _sortAscending = true;
+
+  List<Signature> get _visibleSignatures {
+    final list = _signatures.where((s) {
+      if (_searchQuery.isEmpty) return true;
+      return s.name.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+    list.sort((a, b) {
+      final cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      return _sortAscending ? cmp : -cmp;
+    });
+    return list;
+  }
+
+  void _setSort(String field) {
+    setState(() {
+      _sortAscending = _sortField == field ? !_sortAscending : true;
+      _sortField = field;
+    });
+  }
 
   @override
   void initState() {
@@ -110,6 +133,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
         children: [
           Row(
             children: [
+              Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
               Expanded(child: Text('Signatures', style: Theme.of(context).textTheme.headlineSmall)),
               FilledButton.icon(
                 onPressed: () => _showEditor(),
@@ -119,6 +144,30 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          if (_signatures.isNotEmpty)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Rechercher une signature...',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SortMenuButton(
+                  currentField: _sortField,
+                  ascending: _sortAscending,
+                  options: const {'name': 'Nom'},
+                  onSelected: _setSort,
+                ),
+              ],
+            ),
+          const SizedBox(height: 16),
           Expanded(
             child: _signatures.isEmpty
                 ? const EmptyState(
@@ -127,9 +176,9 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
                     subtitle: 'Créez une ou plusieurs signatures à ajouter à vos messages.',
                   )
                 : ListView.builder(
-                    itemCount: _signatures.length,
+                    itemCount: _visibleSignatures.length,
                     itemBuilder: (context, index) {
-                      final signature = _signatures[index];
+                      final signature = _visibleSignatures[index];
                       return Card(
                         child: ListTile(
                           leading: const Icon(Icons.edit_note),

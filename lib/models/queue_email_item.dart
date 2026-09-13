@@ -15,6 +15,7 @@ class QueueEmailItem {
   final String contactId;
   final String name;
   final String email;
+  final String company;
   QueueItemStatus status;
   int attempts;
   String? lastError;
@@ -25,6 +26,7 @@ class QueueEmailItem {
     required this.contactId,
     required this.name,
     required this.email,
+    this.company = '',
     this.status = QueueItemStatus.waiting,
     this.attempts = 0,
     this.lastError,

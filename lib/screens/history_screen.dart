@@ -22,9 +22,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final Set<String> _selectedIds = {};
   String _sortField = 'date';
   bool _sortAscending = false;
+  String? _accountFilter;
 
   List<SentEmailLog> get _sortedEntries {
-    final list = [..._entries];
+    final list = _entries.where((e) => _accountFilter == null || e.accountEmail == _accountFilter).toList();
     int compare(SentEmailLog a, SentEmailLog b) {
       switch (_sortField) {
         case 'to':
@@ -40,6 +41,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     list.sort((a, b) => _sortAscending ? compare(a, b) : compare(b, a));
     return list;
   }
+
+  List<String> get _accountOptions => _entries.map((e) => e.accountEmail).toSet().toList()..sort();
 
   void _setSort(String field) {
     setState(() {
@@ -71,7 +74,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _exportHistory() async {
     final buffer = StringBuffer('Destinataire;Objet;Date;Statut;Erreur\n');
-    for (final e in _entries) {
+    for (final e in _sortedEntries) {
       buffer.writeln([
         csvField(e.to),
         csvField(e.subject),
@@ -95,6 +98,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Échec de l\'export : ${e.toString()}')),
       );
+    }
+  }
+
+  Future<void> _exportHistoryExcel() async {
+    try {
+      final exported = await exportExcelFile(
+        headers: const ['Destinataire', 'Objet', 'Date', 'Statut', 'Erreur'],
+        rows: _sortedEntries
+            .map((e) => [
+                  e.to,
+                  e.subject,
+                  '${e.sentAt.day}/${e.sentAt.month}/${e.sentAt.year} ${e.sentAt.hour.toString().padLeft(2, '0')}:${e.sentAt.minute.toString().padLeft(2, '0')}',
+                  e.success ? 'Envoyé' : 'Échec',
+                  e.errorMessage ?? '',
+                ])
+            .toList(),
+        suggestedFileName: widget.onlySuccess ? 'historique_envoyes' : 'historique_echecs',
+      );
+      if (!mounted || !exported) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export terminé.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Échec de l\'export : ${e.toString()}')));
     }
   }
 
@@ -165,6 +191,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 label: const Text('Exporter CSV'),
               ),
               TextButton.icon(
+                onPressed: _entries.isEmpty ? null : _exportHistoryExcel,
+                icon: const Icon(Icons.table_chart_outlined),
+                label: const Text('Exporter Excel'),
+              ),
+              TextButton.icon(
                 onPressed: _clearAll,
                 icon: const Icon(Icons.delete_sweep_outlined),
                 label: const Text('Tout effacer'),
@@ -172,6 +203,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
               IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualiser', onPressed: _load),
             ],
           ),
+          if (_accountOptions.length > 1) ...[
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String?>(
+              initialValue: _accountFilter,
+              decoration: const InputDecoration(labelText: 'Filtrer par compte expéditeur', isDense: true, border: OutlineInputBorder()),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Tous les comptes')),
+                ..._accountOptions.map((a) => DropdownMenuItem<String?>(value: a, child: Text(a))),
+              ],
+              onChanged: (value) => setState(() => _accountFilter = value),
+            ),
+          ],
           if (_entries.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(

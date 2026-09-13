@@ -70,6 +70,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         children: [
           Row(
             children: [
+              Icon(Icons.bar_chart, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
               Expanded(child: Text('Statistiques', style: Theme.of(context).textTheme.headlineSmall)),
               IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualiser', onPressed: _load),
             ],

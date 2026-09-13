@@ -17,10 +17,13 @@ import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
 import '../services/bulk_send_queue_service.dart';
 import '../services/send_jobs_manager.dart';
+import '../services/draft_storage.dart';
+import '../models/email_draft.dart';
 import 'bulk_send_progress_panel.dart';
 import 'email_preview_dialog.dart';
 import 'message_analysis_dialog.dart';
 import '../widgets/info_notice.dart';
+import '../models/queue_email_item.dart';
 
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({super.key});
@@ -54,6 +57,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final Set<String> _selectedContactIds = {};
   final List<String> _attachmentPaths = [];
   DateTime? _scheduledFor;
+  String? _recurrence;
 
   bool _bulkMode = false;
   bool _loading = true;
@@ -156,9 +160,82 @@ class _ComposeScreenState extends State<ComposeScreen> {
     });
   }
 
-  /// Remplace {{nom}} par le nom du contact dans un texte.
+  final _draftStorage = DraftStorage();
+
+  Future<void> _saveDraft() async {
+    if (_subjectController.text.trim().isEmpty && _bodyController.text.trim().isEmpty) return;
+    await _draftStorage.addDraft(EmailDraft(
+      id: const Uuid().v4(),
+      subject: _subjectController.text,
+      body: _bodyController.text,
+      savedAt: DateTime.now(),
+    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Brouillon enregistré.')));
+  }
+
+  Future<void> _openDrafts() async {
+    final drafts = await _draftStorage.loadDrafts();
+    if (!mounted) return;
+    if (drafts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucun brouillon enregistré.')));
+      return;
+    }
+    final selected = await showDialog<EmailDraft>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Brouillons'),
+        content: SizedBox(
+          width: 450,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: drafts.length,
+            itemBuilder: (context, index) {
+              final d = drafts[index];
+              return ListTile(
+                title: Text(d.subject.isEmpty ? '(sans objet)' : d.subject),
+                subtitle: Text(
+                  '${d.savedAt.day}/${d.savedAt.month}/${d.savedAt.year} ${d.savedAt.hour.toString().padLeft(2, '0')}:${d.savedAt.minute.toString().padLeft(2, '0')}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Supprimer ce brouillon',
+                  onPressed: () async {
+                    await _draftStorage.removeDraft(d.id);
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                ),
+                onTap: () => Navigator.pop(context, d),
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _subjectController.text = selected.subject;
+        _bodyController.text = selected.body;
+      });
+    }
+  }
+
+  /// Remplace les variables de personnalisation ({{nom}}, {{email}},
+  /// {{entreprise}}) par les informations du destinataire.
+  String _personalizeItem(String text, QueueEmailItem item) {
+    return text
+        .replaceAll('{{nom}}', item.name)
+        .replaceAll('{{email}}', item.email)
+        .replaceAll('{{entreprise}}', item.company.isEmpty ? '' : item.company);
+  }
+
+  /// Utilisé pour l'aperçu avant envoi (un seul contact).
   String _personalize(String text, Contact contact) {
-    return text.replaceAll('{{nom}}', contact.name);
+    return text
+        .replaceAll('{{nom}}', contact.name)
+        .replaceAll('{{email}}', contact.email)
+        .replaceAll('{{entreprise}}', contact.company);
   }
 
   Future<void> _pickAttachments() async {
@@ -212,6 +289,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
             : _bodyController.text,
         attachmentPaths: List.of(_attachmentPaths),
         sendAt: _scheduledFor!,
+        recurrence: _recurrence,
       ));
       if (!mounted) return;
       setState(() {
@@ -225,6 +303,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _bodyController.clear();
         _attachmentPaths.clear();
         _scheduledFor = null;
+        _recurrence = null;
       });
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -395,7 +474,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       subjectTemplate: subjectTemplate,
       bodyTemplate: bodyTemplate,
       signatureGetter: () => signature,
-      personalize: (template, name) => template.replaceAll('{{nom}}', name),
+      personalize: (template, item) => _personalizeItem(template, item),
       attachmentPaths: attachments,
     ));
 
@@ -482,11 +561,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
               InfoNotice(
                 title: 'Conseils pour un envoi en masse fiable',
                 bullets: [
+                  'Personnalisez le contenu avec {{nom}}, {{email}} ou {{entreprise}} — remplacés automatiquement pour chaque destinataire.',
                   if (_selectedAccount?.provider == 'gmail')
                     'Gmail gratuit : limite officielle de 500 e-mails/jour, mais restez idéalement sous 100 à 150/jour pour préserver la réputation du compte.',
                   'Espacez les envois (délai réglable ci-dessous) plutôt que d\'envoyer tout d\'un coup.',
                   'Pour un gros volume, répartissez entre plusieurs comptes connectés plutôt que de pousser un seul compte à sa limite.',
-                  'Personnalisez le contenu plutôt qu\'un message identique pour tous les destinataires.',
                   'Après l\'envoi, vérifiez le taux d\'échec dans l\'Historique — un taux élevé est un signal d\'alerte à prendre au sérieux.',
                 ],
               ),
@@ -685,10 +764,27 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     IconButton(
                       icon: const Icon(Icons.close),
                       tooltip: 'Annuler la programmation',
-                      onPressed: () => setState(() => _scheduledFor = null),
+                      onPressed: () => setState(() {
+                        _scheduledFor = null;
+                        _recurrence = null;
+                      }),
                     ),
                 ],
               ),
+              if (_scheduledFor != null) ...[
+                const SizedBox(height: 8),
+                DropdownButton<String?>(
+                  value: _recurrence,
+                  hint: const Text('Envoi unique'),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Envoi unique')),
+                    DropdownMenuItem(value: 'daily', child: Text('Se répète tous les jours')),
+                    DropdownMenuItem(value: 'weekly', child: Text('Se répète toutes les semaines')),
+                    DropdownMenuItem(value: 'monthly', child: Text('Se répète tous les mois')),
+                  ],
+                  onChanged: (value) => setState(() => _recurrence = value),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 'L\'envoi programmé se déclenche automatiquement tant que l\'application reste ouverte à l\'heure prévue.',
@@ -701,20 +797,38 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(_statusMessage!, style: TextStyle(color: _statusIsError ? Colors.red : Colors.green)),
               ),
-            FilledButton.icon(
-              onPressed: _sending ? null : _showPreviewThenSend,
-              icon: _sending
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.send),
-              label: Text(_sending
-                  ? (_scheduledFor != null ? 'Programmation…' : 'Envoi en cours…')
-                  : (_bulkMode
-                      ? 'Envoyer à tous'
-                      : (_scheduledFor != null ? 'Programmer l\'envoi' : 'Envoyer'))),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _sending ? null : _showPreviewThenSend,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.send),
+                    label: Text(_sending
+                        ? (_scheduledFor != null ? 'Programmation…' : 'Envoi en cours…')
+                        : (_bulkMode
+                            ? 'Envoyer à tous'
+                            : (_scheduledFor != null ? 'Programmer l\'envoi' : 'Envoyer'))),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _saveDraft,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Brouillon'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _openDrafts,
+                  icon: const Icon(Icons.drafts_outlined),
+                  label: const Text('Charger'),
+                ),
+              ],
             ),
           ],
         ),

@@ -1,3 +1,5 @@
+import 'cctld_country_map.dart';
+
 /// Étiquettes prédéfinies suggérées (l'utilisateur peut aussi en taper
 /// une personnalisée directement dans le champ).
 const predefinedContactTags = [
@@ -20,6 +22,7 @@ class Contact {
   final List<String> tags;
   final String note;
   final String status;
+  final DateTime createdAt;
 
   Contact({
     required this.id,
@@ -30,13 +33,17 @@ class Contact {
     this.tags = const [],
     this.note = '',
     this.status = '',
-  });
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
 
   /// Domaine déduit de l'adresse e-mail (ex : "exemple.fr").
   String get domain {
     final atIndex = email.lastIndexOf('@');
     return atIndex == -1 ? '' : email.substring(atIndex + 1).toLowerCase();
   }
+
+  /// Pays déduit de l'adresse e-mail (null si indéterminable).
+  String? get country => detectCountryFromEmail(email);
 
   Contact copyWith({
     String? name,
@@ -56,6 +63,7 @@ class Contact {
         tags: tags ?? this.tags,
         note: note ?? this.note,
         status: status ?? this.status,
+        createdAt: createdAt,
       );
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +75,7 @@ class Contact {
         'tags': tags,
         'note': note,
         'status': status,
+        'createdAt': createdAt.toIso8601String(),
       };
 
   factory Contact.fromJson(Map<String, dynamic> json) => Contact(
@@ -78,5 +87,6 @@ class Contact {
         tags: (json['tags'] as List<dynamic>? ?? []).cast<String>(),
         note: json['note'] as String? ?? '',
         status: json['status'] as String? ?? '',
+        createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : DateTime.now(),
       );
 }

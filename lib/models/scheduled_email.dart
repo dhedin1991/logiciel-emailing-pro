@@ -10,6 +10,8 @@ class ScheduledEmail {
   final DateTime sendAt;
   final bool sent;
   final String? errorMessage;
+  /// null = envoi unique ; sinon 'daily', 'weekly', ou 'monthly'.
+  final String? recurrence;
 
   ScheduledEmail({
     required this.id,
@@ -22,6 +24,7 @@ class ScheduledEmail {
     this.attachmentPaths = const [],
     this.sent = false,
     this.errorMessage,
+    this.recurrence,
   });
 
   Map<String, dynamic> toJson() => {
@@ -35,6 +38,7 @@ class ScheduledEmail {
         'sendAt': sendAt.toIso8601String(),
         'sent': sent,
         'errorMessage': errorMessage,
+        'recurrence': recurrence,
       };
 
   factory ScheduledEmail.fromJson(Map<String, dynamic> json) => ScheduledEmail(
@@ -48,9 +52,10 @@ class ScheduledEmail {
         sendAt: DateTime.parse(json['sendAt'] as String),
         sent: json['sent'] as bool? ?? false,
         errorMessage: json['errorMessage'] as String?,
+        recurrence: json['recurrence'] as String?,
       );
 
-  ScheduledEmail copyWith({bool? sent, String? errorMessage}) => ScheduledEmail(
+  ScheduledEmail copyWith({bool? sent, String? errorMessage, DateTime? sendAt}) => ScheduledEmail(
         id: id,
         accountEmail: accountEmail,
         to: to,
@@ -58,8 +63,9 @@ class ScheduledEmail {
         subject: subject,
         body: body,
         attachmentPaths: attachmentPaths,
-        sendAt: sendAt,
+        sendAt: sendAt ?? this.sendAt,
         sent: sent ?? this.sent,
         errorMessage: errorMessage ?? this.errorMessage,
+        recurrence: recurrence,
       );
 }

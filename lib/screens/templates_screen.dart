@@ -5,6 +5,7 @@ import '../services/template_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/sort_menu_button.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
@@ -18,6 +19,40 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   final _uuid = const Uuid();
   List<MessageTemplate> _templates = [];
   bool _loading = true;
+  String _searchQuery = '';
+  String _sortField = 'name';
+  bool _sortAscending = true;
+
+  List<MessageTemplate> get _visibleTemplates {
+    final list = _templates.where((t) {
+      if (_searchQuery.isEmpty) return true;
+      final q = _searchQuery.toLowerCase();
+      return t.name.toLowerCase().contains(q) || t.subject.toLowerCase().contains(q);
+    }).toList();
+    int compare(MessageTemplate a, MessageTemplate b) {
+      switch (_sortField) {
+        case 'subject':
+          return a.subject.toLowerCase().compareTo(b.subject.toLowerCase());
+        case 'name':
+        default:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      }
+    }
+
+    list.sort((a, b) => _sortAscending ? compare(a, b) : compare(b, a));
+    return list;
+  }
+
+  void _setSort(String field) {
+    setState(() {
+      if (_sortField == field) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortField = field;
+        _sortAscending = true;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -88,6 +123,16 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     bodyController.dispose();
   }
 
+  Future<void> _duplicate(MessageTemplate template) async {
+    await _storage.addTemplate(MessageTemplate(
+      id: _uuid.v4(),
+      name: '${template.name} (copie)',
+      subject: template.subject,
+      body: template.body,
+    ));
+    await _load();
+  }
+
   Future<void> _remove(String id) async {
     final template = _templates.firstWhere((t) => t.id == id);
     await deleteWithUndo(
@@ -115,6 +160,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         children: [
           Row(
             children: [
+              Icon(Icons.description_outlined, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
               Expanded(child: Text('Modèles de messages', style: Theme.of(context).textTheme.headlineSmall)),
               FilledButton.icon(
                 onPressed: () => _showEditor(),
@@ -124,6 +171,30 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          if (_templates.isNotEmpty)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Rechercher un modèle...',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SortMenuButton(
+                  currentField: _sortField,
+                  ascending: _sortAscending,
+                  options: const {'name': 'Nom', 'subject': 'Objet'},
+                  onSelected: _setSort,
+                ),
+              ],
+            ),
+          const SizedBox(height: 16),
           Expanded(
             child: _templates.isEmpty
                 ? const EmptyState(
@@ -132,19 +203,29 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                     subtitle: 'Créez des messages types réutilisables (relance, devis, bienvenue...).',
                   )
                 : ListView.builder(
-                    itemCount: _templates.length,
+                    itemCount: _visibleTemplates.length,
                     itemBuilder: (context, index) {
-                      final template = _templates[index];
+                      final template = _visibleTemplates[index];
                       return Card(
                         child: ListTile(
                           leading: const Icon(Icons.description_outlined),
                           title: Text(template.name),
                           subtitle: Text(template.subject, maxLines: 1, overflow: TextOverflow.ellipsis),
                           onTap: () => _showEditor(existing: template),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: 'Supprimer',
-                            onPressed: () => _remove(template.id),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.copy_outlined),
+                                tooltip: 'Dupliquer',
+                                onPressed: () => _duplicate(template),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: 'Supprimer',
+                                onPressed: () => _remove(template.id),
+                              ),
+                            ],
                           ),
                         ),
                       );

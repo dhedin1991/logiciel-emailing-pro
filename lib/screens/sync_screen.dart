@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../services/sync_service.dart';
+import '../services/local_backup_service.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -18,6 +20,8 @@ class _SyncScreenState extends State<SyncScreen> {
   bool _statusIsError = false;
   DateTime? _lastBackupAt;
   int _reminderDays = 7;
+  final _localBackupService = LocalBackupService();
+  bool _creatingBackup = false;
 
   @override
   void initState() {
@@ -101,6 +105,62 @@ class _SyncScreenState extends State<SyncScreen> {
       _statusMessage = 'Appareil lié. Cliquez "Récupérer depuis le cloud" pour importer vos données.';
       _statusIsError = false;
     });
+  }
+
+  Future<void> _createLocalBackupNow() async {
+    setState(() => _creatingBackup = true);
+    try {
+      await _localBackupService.createBackupNow();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sauvegarde locale créée.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Échec : ${e.toString()}')));
+    } finally {
+      if (mounted) setState(() => _creatingBackup = false);
+    }
+  }
+
+  Future<void> _showLocalBackups() async {
+    final backups = await _localBackupService.listBackups();
+    if (!mounted) return;
+    if (backups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucune sauvegarde locale pour le moment.')));
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sauvegardes locales'),
+        content: SizedBox(
+          width: 450,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: backups.length,
+            itemBuilder: (context, index) {
+              final file = backups[index];
+              final name = file.path.split(Platform.pathSeparator).last;
+              return ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: Text(name),
+                trailing: TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _localBackupService.restoreBackup(file);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sauvegarde restaurée (fusion, rien n\'a été écrasé).')),
+                    );
+                  },
+                  child: const Text('Restaurer'),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+      ),
+    );
   }
 
   @override
@@ -219,6 +279,30 @@ class _SyncScreenState extends State<SyncScreen> {
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(_statusMessage!, style: TextStyle(color: _statusIsError ? Colors.red : Colors.green)),
               ),
+            const Divider(height: 40),
+            Text('Sauvegarde locale automatique', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'En plus de la synchro cloud, l\'application crée automatiquement une copie locale de vos contacts, '
+              'modèles et signatures une fois par jour (les 5 plus récentes sont conservées, sur cet appareil uniquement).',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _creatingBackup ? null : _createLocalBackupNow,
+                  icon: const Icon(Icons.save_outlined),
+                  label: Text(_creatingBackup ? 'Création...' : 'Créer une sauvegarde maintenant'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _showLocalBackups,
+                  icon: const Icon(Icons.history),
+                  label: const Text('Voir les sauvegardes'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

@@ -50,7 +50,7 @@ class BulkSendQueueService extends ChangeNotifier {
   void configure({required List<Contact> contacts, int minDelayMs = 1500, int maxDelayMs = 1500, int maxRetries = 1}) {
     items
       ..clear()
-      ..addAll(contacts.map((c) => QueueEmailItem(contactId: c.id, name: c.name, email: c.email)));
+      ..addAll(contacts.map((c) => QueueEmailItem(contactId: c.id, name: c.name, email: c.email, company: c.company)));
     logs.clear();
     this.minDelayMs = minDelayMs;
     this.maxDelayMs = maxDelayMs.clamp(minDelayMs, 1 << 30);
@@ -67,7 +67,7 @@ class BulkSendQueueService extends ChangeNotifier {
     required String subjectTemplate,
     required String bodyTemplate,
     required Signature? Function() signatureGetter,
-    required String Function(String template, String contactName) personalize,
+    required String Function(String template, QueueEmailItem item) personalize,
     required List<String> attachmentPaths,
   }) async {
     isRunning = true;
@@ -94,8 +94,8 @@ class BulkSendQueueService extends ChangeNotifier {
         item.status = attempt == 1 ? QueueItemStatus.preparing : QueueItemStatus.retrying;
         notifyListeners();
 
-        final personalizedSubject = personalize(subjectTemplate, item.name);
-        var personalizedBody = personalize(bodyTemplate, item.name);
+        final personalizedSubject = personalize(subjectTemplate, item);
+        var personalizedBody = personalize(bodyTemplate, item);
         final signature = signatureGetter();
         if (signature != null) {
           personalizedBody = '$personalizedBody\n\n${signature.content}';

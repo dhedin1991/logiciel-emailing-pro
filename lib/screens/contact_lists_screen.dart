@@ -172,6 +172,8 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
         children: [
           Row(
             children: [
+              Icon(Icons.list_alt_outlined, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
               Expanded(child: Text('Listes de contacts', style: Theme.of(context).textTheme.headlineSmall)),
               FilledButton.icon(
                 onPressed: () => _showEditor(),

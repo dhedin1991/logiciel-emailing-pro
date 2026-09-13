@@ -22,6 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _scheduledCount = 0;
   String? _primaryAccountEmail;
   List<SentEmailLog> _recent = [];
+  Map<String, int> _sentTodayByGmailAccount = {};
 
   @override
   void initState() {
@@ -34,6 +35,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final history = await HistoryStorage().loadAll();
     final scheduled = await ScheduledEmailStorage().loadAll();
     if (!mounted) return;
+    final today = DateTime.now();
+    final gmailEmails = accounts.where((a) => a.provider == 'gmail').map((a) => a.email).toSet();
+    final sentToday = <String, int>{};
+    for (final e in history) {
+      if (!e.success) continue;
+      if (!gmailEmails.contains(e.accountEmail)) continue;
+      if (e.sentAt.year != today.year || e.sentAt.month != today.month || e.sentAt.day != today.day) continue;
+      sentToday[e.accountEmail] = (sentToday[e.accountEmail] ?? 0) + 1;
+    }
     setState(() {
       _accountsCount = accounts.length;
       _primaryAccountEmail = accounts.isEmpty ? null : accounts.first.email;
@@ -41,6 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _errorCount = history.where((e) => !e.success).length;
       _scheduledCount = scheduled.where((e) => !e.sent).length;
       _recent = history.take(5).toList();
+      _sentTodayByGmailAccount = sentToday;
       _loading = false;
     });
   }
@@ -108,6 +119,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 28),
+          if (_sentTodayByGmailAccount.isNotEmpty) ...[
+            Text('Volume d\'envoi Gmail aujourd\'hui', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _sentTodayByGmailAccount.entries.map((e) {
+                final ratio = e.value / 500;
+                final color = ratio >= 0.9 ? Colors.red : (ratio >= 0.3 ? Colors.orange : Colors.green);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(e.key, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text('${e.value}/500', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 80,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(value: ratio.clamp(0, 1), color: color, minHeight: 6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 28),
+          ],
           Wrap(spacing: 16, runSpacing: 16, children: cards),
           const SizedBox(height: 32),
           Text('Activité récente', style: Theme.of(context).textTheme.titleMedium),

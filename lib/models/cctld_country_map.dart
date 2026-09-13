@@ -104,3 +104,17 @@ const Map<String, String> internationalDomainProviders = {
 };
 
 final Set<String> internationalDomains = internationalDomainProviders.keys.toSet();
+
+/// Déduit un pays à partir d'une adresse e-mail (domaine international
+/// connu ignoré, sinon extension (ccTLD) reconnue). Retourne null si aucun
+/// pays ne peut être déterminé — logique partagée avec le module de
+/// nettoyage d'e-mails pour rester cohérente dans toute l'application.
+String? detectCountryFromEmail(String email) {
+  final atIndex = email.lastIndexOf('@');
+  if (atIndex == -1) return null;
+  final domain = email.substring(atIndex + 1).toLowerCase();
+  if (internationalDomains.contains(domain)) return null;
+  final parts = domain.split('.');
+  if (parts.length < 2) return null;
+  return ccTldToCountry[parts.last];
+}
