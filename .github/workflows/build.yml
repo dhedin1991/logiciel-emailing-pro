@@ -64,6 +64,7 @@ jobs:
       # NOUVEAU : permet de télécharger l'application depuis GitHub Actions
       - name: Télécharger l'application Windows
         if: success()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: logiciel-emailing-pro-windows
@@ -248,6 +249,7 @@ jobs:
       # NOUVEAU : permet de télécharger l'APK depuis GitHub Actions
       - name: Télécharger l'APK Android
         if: success()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: logiciel-emailing-pro-android
