@@ -19,6 +19,8 @@ import '../services/bulk_send_queue_service.dart';
 import '../services/send_jobs_manager.dart';
 import '../services/draft_storage.dart';
 import '../models/email_draft.dart';
+import '../services/snippet_storage.dart';
+import '../models/snippet.dart';
 import 'bulk_send_progress_panel.dart';
 import 'email_preview_dialog.dart';
 import 'message_analysis_dialog.dart';
@@ -161,6 +163,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   final _draftStorage = DraftStorage();
+  final _snippetStorage = SnippetStorage();
 
   Future<void> _saveDraft() async {
     if (_subjectController.text.trim().isEmpty && _bodyController.text.trim().isEmpty) return;
@@ -219,6 +222,99 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _bodyController.text = selected.body;
       });
     }
+  }
+
+  void _insertSnippet(Snippet snippet) {
+    final controller = _bodyController;
+    final selection = controller.selection;
+    final text = controller.text;
+    final insertAt = selection.isValid ? selection.start : text.length;
+    final newText = text.replaceRange(insertAt, selection.isValid ? selection.end : text.length, snippet.content);
+    controller.text = newText;
+    controller.selection = TextSelection.collapsed(offset: insertAt + snippet.content.length);
+  }
+
+  Future<void> _openSnippets() async {
+    final snippets = await _snippetStorage.loadSnippets();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Textes courts'),
+            content: SizedBox(
+              width: 450,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (snippets.isEmpty) const Text('Aucun texte court enregistré pour le moment.'),
+                  ...snippets.map((s) => ListTile(
+                        title: Text(s.label),
+                        subtitle: Text(s.content, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                _insertSnippet(s);
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Insérer'),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              onPressed: () async {
+                                await _snippetStorage.removeSnippet(s.id);
+                                snippets.removeWhere((x) => x.id == s.id);
+                                setDialogState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      )),
+                  const Divider(),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final labelController = TextEditingController();
+                      final contentController = TextEditingController();
+                      final added = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Nouveau texte court'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextField(controller: labelController, decoration: const InputDecoration(labelText: 'Nom (ex : Formule de politesse)')),
+                              TextField(controller: contentController, decoration: const InputDecoration(labelText: 'Texte'), maxLines: 3),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+                            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Ajouter')),
+                          ],
+                        ),
+                      );
+                      if (added == true && labelController.text.trim().isNotEmpty) {
+                        final snippet = Snippet(id: const Uuid().v4(), label: labelController.text.trim(), content: contentController.text);
+                        await _snippetStorage.addSnippet(snippet);
+                        snippets.add(snippet);
+                        setDialogState(() {});
+                      }
+                      labelController.dispose();
+                      contentController.dispose();
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Ajouter un texte court'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+          );
+        },
+      ),
+    );
   }
 
   /// Remplace les variables de personnalisation ({{nom}}, {{email}},
@@ -554,7 +650,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
               initialValue: _selectedAccount,
               decoration: const InputDecoration(labelText: 'Expéditeur', border: OutlineInputBorder()),
               items: _accounts.map((a) => DropdownMenuItem(value: a, child: Text(a.email))).toList(),
-              onChanged: (value) => setState(() => _selectedAccount = value),
+              onChanged: (value) => setState(() {
+                _selectedAccount = value;
+                if (value?.defaultSignatureId != null) {
+                  for (final s in _signatures) {
+                    if (s.id == value!.defaultSignatureId) {
+                      _selectedSignature = s;
+                      break;
+                    }
+                  }
+                }
+              }),
             ),
             const SizedBox(height: 12),
             if (_bulkMode) ...[
@@ -730,6 +836,12 @@ class _ComposeScreenState extends State<ComposeScreen> {
               ),
               icon: const Icon(Icons.fact_check_outlined),
               label: const Text('Analyser le message (orthographe, qualité, spam)'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _openSnippets,
+              icon: const Icon(Icons.short_text),
+              label: const Text('Textes courts'),
             ),
             const SizedBox(height: 12),
             if (!_bulkMode) ...[

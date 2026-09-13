@@ -12,6 +12,7 @@ class EmailAccount {
   final int? smtpPort;
   final String? smtpPassword;
   final String? displayName;
+  final String? defaultSignatureId;
 
   EmailAccount({
     required this.email,
@@ -23,6 +24,7 @@ class EmailAccount {
     this.smtpPort,
     this.smtpPassword,
     this.displayName,
+    this.defaultSignatureId,
   }) : accessTokenExpiry = accessTokenExpiry ?? DateTime.now();
 
   bool get isAccessTokenExpired =>
@@ -38,6 +40,7 @@ class EmailAccount {
         'smtpPort': smtpPort,
         'smtpPassword': smtpPassword,
         'displayName': displayName,
+        'defaultSignatureId': defaultSignatureId,
       };
 
   factory EmailAccount.fromJson(Map<String, dynamic> json) => EmailAccount(
@@ -52,12 +55,15 @@ class EmailAccount {
         smtpPort: json['smtpPort'] as int?,
         smtpPassword: json['smtpPassword'] as String?,
         displayName: json['displayName'] as String?,
+        defaultSignatureId: json['defaultSignatureId'] as String?,
       );
 
   EmailAccount copyWith({
     String? accessToken,
     String? refreshToken,
     DateTime? accessTokenExpiry,
+    String? defaultSignatureId,
+    bool clearDefaultSignature = false,
   }) =>
       EmailAccount(
         email: email,
@@ -69,5 +75,6 @@ class EmailAccount {
         smtpPort: smtpPort,
         smtpPassword: smtpPassword,
         displayName: displayName,
+        defaultSignatureId: clearDefaultSignature ? null : (defaultSignatureId ?? this.defaultSignatureId),
       );
 }

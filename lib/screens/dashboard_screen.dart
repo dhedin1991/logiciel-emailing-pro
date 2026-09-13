@@ -5,6 +5,7 @@ import '../services/history_storage.dart';
 import '../services/scheduled_email_storage.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
+import 'scheduled_calendar_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
@@ -62,7 +63,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final cards = [
       _StatCard(icon: Icons.send, label: 'E-mails envoyés', value: _sentCount, color: Colors.green),
-      _StatCard(icon: Icons.schedule, label: 'Envois programmés', value: _scheduledCount, color: Colors.orange),
+      _StatCard(
+        icon: Icons.schedule,
+        label: 'Envois programmés',
+        value: _scheduledCount,
+        color: Colors.orange,
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ScheduledCalendarScreen())),
+      ),
       _StatCard(icon: Icons.error_outline, label: 'Erreurs', value: _errorCount, color: Colors.red),
       _StatCard(icon: Icons.alternate_email, label: 'Comptes connectés', value: _accountsCount, color: Colors.blue),
     ];
@@ -195,27 +202,32 @@ class _StatCard extends StatelessWidget {
   final String label;
   final int value;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _StatCard({required this.icon, required this.label, required this.value, required this.color});
+  const _StatCard({required this.icon, required this.label, required this.value, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 12),
-          Text('$value', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.grey.shade700)),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 12),
+            Text('$value', style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(color: Colors.grey.shade700)),
+          ],
+        ),
       ),
     );
   }

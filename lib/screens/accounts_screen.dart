@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/email_account.dart';
+import '../models/signature.dart';
 import '../services/account_storage.dart';
 import '../services/gmail_auth_service.dart';
 import '../services/smtp_send_service.dart';
+import '../services/signature_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/password_field.dart';
@@ -20,8 +22,10 @@ class AccountsScreen extends StatefulWidget {
 class _AccountsScreenState extends State<AccountsScreen> {
   final _storage = AccountStorage();
   final _gmailAuth = GmailAuthService();
+  final _signatureStorage = SignatureStorage();
 
   List<EmailAccount> _accounts = [];
+  List<Signature> _signatures = [];
   bool _loading = true;
   bool _connecting = false;
   String? _errorMessage;
@@ -34,11 +38,21 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Future<void> _loadAccounts() async {
     final accounts = await _storage.loadAccounts();
+    final signatures = await _signatureStorage.loadSignatures();
     if (!mounted) return;
     setState(() {
       _accounts = accounts;
+      _signatures = signatures;
       _loading = false;
     });
+  }
+
+  Future<void> _setDefaultSignature(EmailAccount account, String? signatureId) async {
+    await _storage.addOrUpdateAccount(account.copyWith(
+      defaultSignatureId: signatureId,
+      clearDefaultSignature: signatureId == null,
+    ));
+    await _loadAccounts();
   }
 
   Future<void> _connectGmailAccount() async {
@@ -269,7 +283,26 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         child: ListTile(
                           leading: const Icon(Icons.mail_outline),
                           title: Text(account.email),
-                          subtitle: Text(_providerLabel(account.provider)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_providerLabel(account.provider)),
+                              if (_signatures.isNotEmpty)
+                                DropdownButton<String?>(
+                                  isDense: true,
+                                  value: _signatures.any((s) => s.id == account.defaultSignatureId)
+                                      ? account.defaultSignatureId
+                                      : null,
+                                  hint: const Text('Signature par défaut', style: TextStyle(fontSize: 12)),
+                                  items: [
+                                    const DropdownMenuItem<String?>(value: null, child: Text('Aucune')),
+                                    ..._signatures.map((s) => DropdownMenuItem<String?>(value: s.id, child: Text(s.name))),
+                                  ],
+                                  onChanged: (value) => _setDefaultSignature(account, value),
+                                ),
+                            ],
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [

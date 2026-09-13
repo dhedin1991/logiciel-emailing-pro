@@ -22,9 +22,14 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   String _searchQuery = '';
   String _sortField = 'name';
   bool _sortAscending = true;
+  String? _folderFilter;
+
+  List<String> get _allFolders =>
+      _templates.map((t) => t.folder).where((f) => f.isNotEmpty).toSet().toList()..sort();
 
   List<MessageTemplate> get _visibleTemplates {
     final list = _templates.where((t) {
+      if (_folderFilter != null && t.folder != _folderFilter) return false;
       if (_searchQuery.isEmpty) return true;
       final q = _searchQuery.toLowerCase();
       return t.name.toLowerCase().contains(q) || t.subject.toLowerCase().contains(q);
@@ -73,6 +78,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     final nameController = TextEditingController(text: existing?.name ?? '');
     final subjectController = TextEditingController(text: existing?.subject ?? '');
     final bodyController = TextEditingController(text: existing?.body ?? '');
+    final folderController = TextEditingController(text: existing?.folder ?? '');
 
     final saved = await showDialog<bool>(
       context: context,
@@ -84,6 +90,23 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nom du modèle')),
+              Autocomplete<String>(
+                optionsBuilder: (value) {
+                  if (value.text.isEmpty) return _allFolders;
+                  return _allFolders.where((f) => f.toLowerCase().contains(value.text.toLowerCase()));
+                },
+                initialValue: TextEditingValue(text: folderController.text),
+                fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  controller.text = folderController.text;
+                  controller.addListener(() => folderController.text = controller.text);
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(labelText: 'Dossier (optionnel — ex : Relances, Devis)'),
+                  );
+                },
+                onSelected: (value) => folderController.text = value,
+              ),
               TextField(controller: subjectController, decoration: const InputDecoration(labelText: 'Objet')),
               TextField(
                 controller: bodyController,
@@ -107,6 +130,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           name: nameController.text.trim(),
           subject: subjectController.text.trim(),
           body: bodyController.text,
+          folder: folderController.text.trim(),
         ));
       } else {
         await _storage.updateTemplate(MessageTemplate(
@@ -114,6 +138,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           name: nameController.text.trim(),
           subject: subjectController.text.trim(),
           body: bodyController.text,
+          folder: folderController.text.trim(),
         ));
       }
       await _load();
@@ -121,6 +146,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     nameController.dispose();
     subjectController.dispose();
     bodyController.dispose();
+    folderController.dispose();
   }
 
   Future<void> _duplicate(MessageTemplate template) async {
@@ -129,6 +155,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       name: '${template.name} (copie)',
       subject: template.subject,
       body: template.body,
+      folder: template.folder,
     ));
     await _load();
   }
@@ -171,7 +198,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_templates.isNotEmpty)
+          if (_templates.isNotEmpty) ...[
             Row(
               children: [
                 Expanded(
@@ -194,6 +221,25 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 ),
               ],
             ),
+            if (_allFolders.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Tous'),
+                    selected: _folderFilter == null,
+                    onSelected: (_) => setState(() => _folderFilter = null),
+                  ),
+                  ..._allFolders.map((f) => ChoiceChip(
+                        label: Text(f),
+                        selected: _folderFilter == f,
+                        onSelected: (_) => setState(() => _folderFilter = f),
+                      )),
+                ],
+              ),
+            ],
+          ],
           const SizedBox(height: 16),
           Expanded(
             child: _templates.isEmpty
@@ -210,7 +256,11 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                         child: ListTile(
                           leading: const Icon(Icons.description_outlined),
                           title: Text(template.name),
-                          subtitle: Text(template.subject, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(
+                            template.folder.isEmpty ? template.subject : '${template.folder} · ${template.subject}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           onTap: () => _showEditor(existing: template),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,

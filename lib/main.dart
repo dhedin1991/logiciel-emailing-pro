@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/compose_screen.dart';
 import 'screens/contacts_home_screen.dart';
@@ -15,6 +16,8 @@ import 'services/scheduler_service.dart';
 import 'services/send_jobs_manager.dart';
 import 'services/theme_service.dart';
 import 'services/local_backup_service.dart';
+import 'services/onboarding_service.dart';
+import 'screens/onboarding_dialog.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -215,6 +218,18 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _scheduler.start();
+    _maybeShowOnboarding();
+  }
+
+  Future<void> _maybeShowOnboarding() async {
+    final service = OnboardingService();
+    final seen = await service.hasSeenOnboarding();
+    if (seen || !mounted) return;
+    await service.markSeen();
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showOnboardingDialog(context);
+    });
   }
 
   @override
@@ -288,13 +303,21 @@ class _HomeShellState extends State<HomeShell> {
     // Bouton retour physique (Android) : depuis n'importe quelle section,
     // ramène d'abord au tableau de bord au lieu de fermer l'app directement ;
     // depuis le tableau de bord, un appui supplémentaire quitte l'app.
-    return PopScope(
-      canPop: onDashboard,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        setState(() => _selectedIndex = 0);
+    return CallbackShortcuts(
+      bindings: {
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyN): () => setState(() => _selectedIndex = 3),
       },
-      child: _buildScaffold(context, isWide, appBar, content),
+      child: Focus(
+        autofocus: true,
+        child: PopScope(
+          canPop: onDashboard,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+            setState(() => _selectedIndex = 0);
+          },
+          child: _buildScaffold(context, isWide, appBar, content),
+        ),
+      ),
     );
   }
 

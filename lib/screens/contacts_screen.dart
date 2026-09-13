@@ -375,6 +375,82 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
+  /// Regroupe les contacts partageant la même adresse e-mail (insensible
+  /// à la casse) — typiquement des doublons créés par une faute de frappe
+  /// sur le nom lors d'imports séparés.
+  List<List<Contact>> get _duplicateGroups {
+    final byEmail = <String, List<Contact>>{};
+    for (final c in _contacts) {
+      byEmail.putIfAbsent(c.email.toLowerCase(), () => []).add(c);
+    }
+    return byEmail.values.where((g) => g.length > 1).toList();
+  }
+
+  Future<void> _mergeGroup(List<Contact> group) async {
+    final kept = group.first;
+    final others = group.skip(1).toList();
+    final mergedTags = <String>{...kept.tags};
+    var mergedNote = kept.note;
+    var company = kept.company;
+    var phone = kept.phone;
+    for (final o in others) {
+      mergedTags.addAll(o.tags);
+      if (mergedNote.isEmpty) mergedNote = o.note;
+      if (company.isEmpty) company = o.company;
+      if (phone.isEmpty) phone = o.phone;
+    }
+    await _storage.updateContact(kept.copyWith(tags: mergedTags.toList(), note: mergedNote, company: company, phone: phone));
+    for (final o in others) {
+      await _storage.removeContact(o.id);
+    }
+    await _loadContacts();
+  }
+
+  Future<void> _showMergeDuplicatesDialog() async {
+    final groups = _duplicateGroups;
+    if (groups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucun doublon détecté.')));
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final remaining = _duplicateGroups;
+          return AlertDialog(
+            title: Text('Doublons détectés (${remaining.length})'),
+            content: SizedBox(
+              width: 480,
+              child: remaining.isEmpty
+                  ? const Text('Tous les doublons ont été fusionnés.')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: remaining.length,
+                      itemBuilder: (context, index) {
+                        final group = remaining[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text(group.first.email),
+                            subtitle: Text('Noms : ${group.map((c) => c.name).join(', ')}'),
+                            trailing: TextButton(
+                              onPressed: () async {
+                                await _mergeGroup(group);
+                                setDialogState(() {});
+                              },
+                              child: const Text('Fusionner'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _removeContact(String id) async {
     final contact = _contacts.firstWhere((c) => c.id == id);
     await deleteWithUndo(
@@ -448,6 +524,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 child: Text('Carnet d\'adresses (${_contacts.length})',
                     style: Theme.of(context).textTheme.headlineSmall),
               ),
+              OutlinedButton.icon(
+                onPressed: _showMergeDuplicatesDialog,
+                icon: const Icon(Icons.merge_type),
+                label: const Text('Fusionner les doublons'),
+              ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _contacts.isEmpty ? null : _exportContacts,
                 icon: const Icon(Icons.download),
