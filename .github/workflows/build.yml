@@ -90,10 +90,43 @@ jobs:
 
           New-Item -ItemType Directory -Force -Path builds | Out-Null
 
-          Compress-Archive `
-            -Path build/windows/x64/runner/Release/* `
-            -DestinationPath /tmp/windows-latest.zip `
-            -Force
+          $releaseDir = "build/windows/x64/runner/Release"
+          $zipPath = "/tmp/windows-latest.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+          # Compress-Archive a des bugs connus (chemins longs, échecs silencieux)
+          # sur certains contenus Flutter Windows : on utilise directement l'API
+          # .NET, plus fiable pour ce cas, avec verification explicite ensuite.
+          $zipError = $null
+          try {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($releaseDir, $zipPath)
+          } catch {
+            $zipError = $_.Exception.Message
+          }
+
+          $zipInfo = Get-Item $zipPath -ErrorAction SilentlyContinue
+          $zipSizeOk = $zipInfo -and $zipInfo.Length -gt 1000000
+
+          if (-not $zipSizeOk) {
+            # Ne jamais committer/pousser silencieusement un zip absent ou
+            # anormalement petit : on consigne le probleme dans le depot pour
+            # qu'il soit visible, et on arrete l'etape en echec explicite.
+            git config user.email "ci-bot@local"
+            git config user.name "CI Bot"
+            git fetch origin main
+            git reset --hard origin/main
+            New-Item -ItemType Directory -Force -Path builds | Out-Null
+            $diag = "Echec de la compression du build Windows le " + (Get-Date -Format "o") + "`n"
+            $diag += "Erreur : $zipError`n"
+            $diag += "Taille du zip obtenu : " + $(if ($zipInfo) { $zipInfo.Length } else { "fichier absent" }) + "`n"
+            $diag | Out-File builds/windows-compress-error.txt -Force
+            git add builds/windows-compress-error.txt -f
+            git commit -m "Echec compression Windows"
+            git push origin HEAD:main
+            Write-Host "::error::Compression du build Windows invalide (taille: $($zipInfo.Length))"
+            exit 1
+          }
 
           git config user.email "ci-bot@local"
           git config user.name "CI Bot"
@@ -114,14 +147,16 @@ jobs:
 
             New-Item -ItemType Directory -Force -Path builds | Out-Null
 
-            Copy-Item /tmp/windows-latest.zip builds/windows-latest.zip -Force
+            Copy-Item $zipPath builds/windows-latest.zip -Force
             # Fichier compagnon dont le contenu change à chaque run : garantit
             # qu'il y a toujours quelque chose à committer, même si le zip lui-
             # même finissait par être identique au précédent (ce qui empêchait
             # silencieusement la mise à jour du build sans que rien ne l'indique).
             Get-Date -Format "o" | Out-File builds/windows-build-info.txt -Force
+            Remove-Item builds/windows-compress-error.txt -Force -ErrorAction SilentlyContinue
 
             git add builds/windows-latest.zip builds/windows-build-info.txt -f
+            git add builds/windows-compress-error.txt -f -A 2>$null
 
             git commit -m "Build Windows" *> commit_out.txt
             Get-Content commit_out.txt | Add-Content win-deposit-log.txt
