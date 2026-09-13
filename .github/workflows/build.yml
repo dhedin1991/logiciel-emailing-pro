@@ -115,8 +115,13 @@ jobs:
             New-Item -ItemType Directory -Force -Path builds | Out-Null
 
             Copy-Item /tmp/windows-latest.zip builds/windows-latest.zip -Force
+            # Fichier compagnon dont le contenu change à chaque run : garantit
+            # qu'il y a toujours quelque chose à committer, même si le zip lui-
+            # même finissait par être identique au précédent (ce qui empêchait
+            # silencieusement la mise à jour du build sans que rien ne l'indique).
+            Get-Date -Format "o" | Out-File builds/windows-build-info.txt -Force
 
-            git add builds/windows-latest.zip -f
+            git add builds/windows-latest.zip builds/windows-build-info.txt -f
 
             git commit -m "Build Windows" *> commit_out.txt
             Get-Content commit_out.txt | Add-Content win-deposit-log.txt
@@ -287,8 +292,9 @@ jobs:
               mkdir -p builds
 
               cp /tmp/app-release.apk builds/android-latest.apk
+              date -u +"%Y-%m-%dT%H:%M:%SZ" > builds/android-build-info.txt
 
-              git add builds/android-latest.apk -f
+              git add builds/android-latest.apk builds/android-build-info.txt -f
 
               git commit -m "Build Android" || echo "rien a committer"
 
