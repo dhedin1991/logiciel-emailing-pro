@@ -1,4 +1,0 @@
-Echec de la compression du build Windows le 2026-09-13T23:57:38.1309652+00:00
-Erreur : Exception calling "CreateFromDirectory" with "2" argument(s): "Could not find a part of the path 'D:\tmp\windows-latest.zip'."
-Taille du zip obtenu : fichier absent
-
