@@ -33,6 +33,30 @@ String friendlySyncError(Object error) {
   return 'Une erreur est survenue pendant la synchronisation. Réessayez dans quelques instants.';
 }
 
+/// Exécute un appel réseau avec plusieurs tentatives automatiques avant
+/// d'abandonner. Corrige un problème connu sur Android : une résolution
+/// DNS qui échoue ponctuellement au moment précis de l'appel (le
+/// navigateur du téléphone réessaie automatiquement dans ce cas, ce que
+/// Dart ne fait pas par défaut).
+Future<T> _withRetry<T>(Future<T> Function() action, {int attempts = 3}) async {
+  Object? lastError;
+  for (var i = 0; i < attempts; i++) {
+    try {
+      return await action();
+    } catch (e) {
+      lastError = e;
+      final isNetworkError = e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup') ||
+          e.toString().contains('TimeoutException');
+      // On ne réessaie que les erreurs réseau transitoires — une vraie
+      // erreur de configuration (ex : 401) ne se corrigera pas en réessayant.
+      if (!isNetworkError || i == attempts - 1) rethrow;
+      await Future.delayed(Duration(milliseconds: 500 * (i + 1)));
+    }
+  }
+  throw lastError!;
+}
+
 class SyncService {
   static const _supabaseUrl = 'https://dgpdmiqobgrcszmjyuhi.supabase.co';
   static const _apiKey = 'sb_publishable_LCSAjO9CVdMIQ-hx0OlGZA_Z4bndveU';
@@ -63,20 +87,20 @@ class SyncService {
 
   Future<void> _push(String dataType, dynamic payload) async {
     final syncCode = await getOrCreateSyncCode();
-    final response = await http.post(
-      Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'),
-      headers: {
-        'apikey': _apiKey,
-        'Authorization': 'Bearer $_apiKey',
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates',
-      },
-      body: jsonEncode({
-        'sync_id': syncCode,
-        'data_type': dataType,
-        'payload': payload,
-      }),
-    );
+    final response = await _withRetry(() => http.post(
+          Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'),
+          headers: {
+            'apikey': _apiKey,
+            'Authorization': 'Bearer $_apiKey',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: jsonEncode({
+            'sync_id': syncCode,
+            'data_type': dataType,
+            'payload': payload,
+          }),
+        ));
     if (response.statusCode >= 300) {
       throw Exception('Échec de l\'envoi ($dataType) : ${response.body}');
     }
@@ -84,14 +108,14 @@ class SyncService {
 
   Future<dynamic> _pull(String dataType) async {
     final syncCode = await getOrCreateSyncCode();
-    final response = await http.get(
-      Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'
-          '?sync_id=eq.$syncCode&data_type=eq.$dataType&select=payload'),
-      headers: {
-        'apikey': _apiKey,
-        'Authorization': 'Bearer $_apiKey',
-      },
-    );
+    final response = await _withRetry(() => http.get(
+          Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'
+              '?sync_id=eq.$syncCode&data_type=eq.$dataType&select=payload'),
+          headers: {
+            'apikey': _apiKey,
+            'Authorization': 'Bearer $_apiKey',
+          },
+        ));
     if (response.statusCode >= 300) {
       throw Exception('Échec de la récupération ($dataType) : ${response.body}');
     }
@@ -107,10 +131,12 @@ class SyncService {
   /// clair pour l'utilisateur plutôt qu'une exception technique brute.
   Future<String?> testConnection() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_supabaseUrl/rest/v1/'),
-        headers: {'apikey': _apiKey},
-      ).timeout(const Duration(seconds: 8));
+      final response = await _withRetry(() => http
+          .get(
+            Uri.parse('$_supabaseUrl/rest/v1/'),
+            headers: {'apikey': _apiKey},
+          )
+          .timeout(const Duration(seconds: 8)));
       if (response.statusCode >= 200 && response.statusCode < 500) {
         return null; // joignable (même un 401/404 prouve que le serveur répond)
       }
@@ -142,11 +168,13 @@ class SyncService {
   Future<DateTime?> remoteUpdatedAt() async {
     final syncCode = await getOrCreateSyncCode();
     try {
-      final response = await http.get(
-        Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'
-            '?sync_id=eq.$syncCode&select=updated_at&order=updated_at.desc&limit=1'),
-        headers: {'apikey': _apiKey, 'Authorization': 'Bearer $_apiKey'},
-      ).timeout(const Duration(seconds: 8));
+      final response = await _withRetry(() => http
+          .get(
+            Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'
+                '?sync_id=eq.$syncCode&select=updated_at&order=updated_at.desc&limit=1'),
+            headers: {'apikey': _apiKey, 'Authorization': 'Bearer $_apiKey'},
+          )
+          .timeout(const Duration(seconds: 8)));
       if (response.statusCode != 200) return null;
       final list = jsonDecode(response.body) as List<dynamic>;
       if (list.isEmpty) return null;
