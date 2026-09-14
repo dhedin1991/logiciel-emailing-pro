@@ -6,6 +6,7 @@ import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/sort_menu_button.dart';
+import '../widgets/screen_header.dart';
 
 class SignaturesScreen extends StatefulWidget {
   const SignaturesScreen({super.key});
@@ -131,11 +132,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Signatures', style: Theme.of(context).textTheme.headlineSmall)),
+          ScreenHeader(
+            icon: Icons.edit_note,
+            title: 'Signatures',
+            actions: [
               FilledButton.icon(
                 onPressed: () => _showEditor(),
                 icon: const Icon(Icons.add),

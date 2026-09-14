@@ -6,6 +6,7 @@ import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/sort_menu_button.dart';
+import '../widgets/screen_header.dart';
 
 class TemplatesScreen extends StatefulWidget {
   const TemplatesScreen({super.key});
@@ -185,11 +186,10 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.description_outlined, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Modèles de messages', style: Theme.of(context).textTheme.headlineSmall)),
+          ScreenHeader(
+            icon: Icons.description_outlined,
+            title: 'Modèles de messages',
+            actions: [
               FilledButton.icon(
                 onPressed: () => _showEditor(),
                 icon: const Icon(Icons.add),

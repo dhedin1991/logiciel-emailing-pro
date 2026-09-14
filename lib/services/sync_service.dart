@@ -14,6 +14,24 @@ import 'signature_storage.dart';
 /// ne sont JAMAIS synchronisés par ce service : chaque appareil doit se
 /// reconnecter à Gmail séparément, pour ne jamais faire transiter de jeton
 /// sensible par une base de données à accès partagé.
+/// Traduit une exception technique (souvent illisible pour un utilisateur
+/// non technique) en message clair. Les détails techniques bruts restent
+/// disponibles via `error.toString()` pour les logs si besoin, mais ne
+/// doivent jamais s'afficher tels quels à l'écran.
+String friendlySyncError(Object error) {
+  final message = error.toString();
+  if (message.contains('SocketException') || message.contains('Failed host lookup')) {
+    return 'Pas de connexion Internet, ou le serveur Supabase est introuvable (vérifiez votre réseau ou vos données mobiles).';
+  }
+  if (message.contains('TimeoutException')) {
+    return 'Le serveur met trop de temps à répondre (connexion lente ou instable).';
+  }
+  if (message.contains('401') || message.contains('403')) {
+    return 'Accès refusé par le serveur — la configuration de synchronisation doit être vérifiée.';
+  }
+  return 'Une erreur est survenue pendant la synchronisation. Réessayez dans quelques instants.';
+}
+
 class SyncService {
   static const _supabaseUrl = 'https://dgpdmiqobgrcszmjyuhi.supabase.co';
   static const _apiKey = 'sb_publishable_LCSAjO9CVdMIQ-hx0OlGZA_Z4bndveU';
@@ -97,14 +115,7 @@ class SyncService {
       }
       return 'Le serveur a répondu avec une erreur (code ${response.statusCode}).';
     } catch (e) {
-      final message = e.toString();
-      if (message.contains('SocketException') || message.contains('Failed host lookup')) {
-        return 'Pas de connexion Internet, ou le nom du serveur Supabase est introuvable (vérifiez votre réseau).';
-      }
-      if (message.contains('TimeoutException')) {
-        return 'Le serveur Supabase met trop de temps à répondre (connexion lente ou instable).';
-      }
-      return 'Connexion impossible : $message';
+      return friendlySyncError(e);
     }
   }
 

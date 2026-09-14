@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/history_storage.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/screen_header.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -78,11 +79,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.bar_chart, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Statistiques', style: Theme.of(context).textTheme.headlineSmall)),
+          ScreenHeader(
+            icon: Icons.bar_chart,
+            title: 'Statistiques',
+            actions: [
               IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualiser', onPressed: _load),
             ],
           ),

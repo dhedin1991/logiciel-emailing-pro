@@ -65,7 +65,7 @@ class _SyncScreenState extends State<SyncScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _statusMessage = 'Échec : ${e.toString()}';
+        _statusMessage = friendlySyncError(e);
         _statusIsError = true;
       });
     } finally {
@@ -88,7 +88,7 @@ class _SyncScreenState extends State<SyncScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _statusMessage = 'Échec : ${e.toString()}';
+        _statusMessage = friendlySyncError(e);
         _statusIsError = true;
       });
     } finally {

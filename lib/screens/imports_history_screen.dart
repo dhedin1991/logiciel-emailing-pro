@@ -3,6 +3,7 @@ import '../services/import_history_storage.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/screen_header.dart';
 
 class ImportsHistoryScreen extends StatefulWidget {
   const ImportsHistoryScreen({super.key});
@@ -89,9 +90,9 @@ class _ImportsHistoryScreenState extends State<ImportsHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text('Imports (${_entries.length})', style: Theme.of(context).textTheme.headlineSmall)),
+          ScreenHeader(
+            title: 'Imports (${_entries.length})',
+            actions: [
               TextButton.icon(
                 onPressed: _clearAll,
                 icon: const Icon(Icons.delete_sweep_outlined),

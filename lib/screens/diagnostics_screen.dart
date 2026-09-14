@@ -3,6 +3,7 @@ import '../services/sync_service.dart';
 import '../services/account_storage.dart';
 import '../services/send_jobs_manager.dart';
 import '../models/email_account.dart';
+import '../widgets/screen_header.dart';
 
 /// Centre de diagnostic : permet de comprendre rapidement l'état de
 /// l'application (connexion Supabase, comptes, file d'envoi) sans avoir à
@@ -52,11 +53,10 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.health_and_safety_outlined, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text('Centre de diagnostic', style: Theme.of(context).textTheme.headlineSmall)),
+              ScreenHeader(
+                icon: Icons.health_and_safety_outlined,
+                title: 'Centre de diagnostic',
+                actions: [
                   IconButton(
                     icon: _checking
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))

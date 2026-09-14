@@ -12,6 +12,7 @@ import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/sort_menu_button.dart';
 import '../services/compose_prefill.dart';
+import '../widgets/screen_header.dart';
 import '../widgets/skeleton_loader.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -527,30 +528,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('Carnet d\'adresses (${_contacts.length})',
-                    style: Theme.of(context).textTheme.headlineSmall),
-              ),
+          ScreenHeader(
+            title: 'Carnet d\'adresses (${_contacts.length})',
+            actions: [
               OutlinedButton.icon(
                 onPressed: _showMergeDuplicatesDialog,
                 icon: const Icon(Icons.merge_type),
                 label: const Text('Fusionner les doublons'),
               ),
-              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _contacts.isEmpty ? null : _exportContacts,
                 icon: const Icon(Icons.download),
                 label: const Text('Exporter CSV'),
               ),
-              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _contacts.isEmpty ? null : _exportContactsExcel,
                 icon: const Icon(Icons.table_chart_outlined),
                 label: const Text('Exporter Excel'),
               ),
-              const SizedBox(width: 12),
               OutlinedButton.icon(
                 onPressed: _importing ? null : _importFile,
                 icon: _importing
@@ -558,7 +553,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     : const Icon(Icons.upload_file),
                 label: Text(_importing ? 'Import…' : 'Importer Excel/CSV'),
               ),
-              const SizedBox(width: 12),
               FilledButton.icon(
                 onPressed: () => _showContactDialog(),
                 icon: const Icon(Icons.person_add),

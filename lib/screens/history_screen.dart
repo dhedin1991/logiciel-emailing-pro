@@ -5,6 +5,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/sort_menu_button.dart';
 import '../services/export_helper.dart';
+import '../widgets/screen_header.dart';
 import '../widgets/skeleton_loader.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -182,9 +183,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text('$title (${_entries.length})', style: Theme.of(context).textTheme.headlineSmall)),
+          ScreenHeader(
+            title: '$title (${_entries.length})',
+            actions: [
               TextButton.icon(
                 onPressed: _entries.isEmpty ? null : _exportHistory,
                 icon: const Icon(Icons.download),

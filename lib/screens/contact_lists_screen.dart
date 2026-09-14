@@ -9,6 +9,7 @@ import '../services/contact_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/screen_header.dart';
 
 class ContactListsScreen extends StatefulWidget {
   const ContactListsScreen({super.key});
@@ -170,11 +171,10 @@ class _ContactListsScreenState extends State<ContactListsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.list_alt_outlined, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Listes de contacts', style: Theme.of(context).textTheme.headlineSmall)),
+          ScreenHeader(
+            icon: Icons.list_alt_outlined,
+            title: 'Listes de contacts',
+            actions: [
               FilledButton.icon(
                 onPressed: () => _showEditor(),
                 icon: const Icon(Icons.playlist_add),
