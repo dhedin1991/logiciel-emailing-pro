@@ -256,7 +256,7 @@ class _HomeShellState extends State<HomeShell> {
     if (_selectedIndex == 0) {
       content = DashboardScreen(onNavigate: (i) => setState(() => _selectedIndex = i));
     } else if (_selectedIndex == 1) {
-      content = const ContactsHomeScreen();
+      content = ContactsHomeScreen(onNavigate: (i) => setState(() => _selectedIndex = i));
     } else if (_selectedIndex == 2) {
       content = const TemplatesScreen();
     } else if (_selectedIndex == 3) {

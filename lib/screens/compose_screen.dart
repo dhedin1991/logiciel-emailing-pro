@@ -21,6 +21,7 @@ import '../services/draft_storage.dart';
 import '../models/email_draft.dart';
 import '../services/snippet_storage.dart';
 import '../models/snippet.dart';
+import '../services/compose_prefill.dart';
 import 'bulk_send_progress_panel.dart';
 import 'email_preview_dialog.dart';
 import 'message_analysis_dialog.dart';
@@ -85,6 +86,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final contacts = await _contactStorage.loadContacts();
     final contactLists = await _contactListStorage.loadAll();
     if (!mounted) return;
+    final prefill = ComposePrefill.instance.consume();
     setState(() {
       _accounts = accounts;
       _selectedAccount = accounts.isNotEmpty ? accounts.first : null;
@@ -93,6 +95,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
       _contacts = contacts;
       _contactLists = contactLists;
       _loading = false;
+      // Contacts transmis depuis l'écran Contacts (bouton "Rédiger") :
+      // on bascule automatiquement en mode envoi multiple et on les
+      // pré-sélectionne, pour éviter tout copier-coller manuel.
+      if (prefill != null && prefill.isNotEmpty) {
+        _bulkMode = true;
+        _selectedContactIds
+          ..clear()
+          ..addAll(prefill.map((c) => c.id));
+      }
     });
   }
 
@@ -419,7 +430,50 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   Future<void> _showPreviewThenSend() async {
-    if (_selectedAccount == null) return;
+    if (_selectedAccount == null) {
+      setState(() {
+        _statusMessage = 'Sélectionnez un compte expéditeur avant d\'envoyer.';
+        _statusIsError = true;
+      });
+      return;
+    }
+    if (_subjectController.text.trim().isEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Objet vide'),
+          content: const Text('Le message n\'a pas d\'objet. Envoyer quand même ?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Envoyer quand même')),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+    if (_bodyController.text.trim().isEmpty) {
+      setState(() {
+        _statusMessage = 'Le message est vide — ajoutez du texte avant d\'envoyer.';
+        _statusIsError = true;
+      });
+      return;
+    }
+    if (_bulkMode) {
+      final recipients = _contacts.where((c) => _selectedContactIds.contains(c.id)).toList();
+      final emailCounts = <String, int>{};
+      for (final c in recipients) {
+        final key = c.email.toLowerCase();
+        emailCounts[key] = (emailCounts[key] ?? 0) + 1;
+      }
+      final duplicates = emailCounts.entries.where((e) => e.value > 1).map((e) => e.key).toList();
+      if (duplicates.isNotEmpty) {
+        setState(() {
+          _statusMessage = 'Adresse(s) en double dans la sélection : ${duplicates.join(', ')}';
+          _statusIsError = true;
+        });
+        return;
+      }
+    }
     final bodyWithSignature = _selectedSignature != null
         ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
         : _bodyController.text;

@@ -5,6 +5,7 @@ import 'sync_screen.dart';
 import 'security_screen.dart';
 import 'about_screen.dart';
 import 'appearance_screen.dart';
+import 'diagnostics_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -12,7 +13,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Column(
         children: [
           const TabBar(
@@ -23,6 +24,7 @@ class SettingsScreen extends StatelessWidget {
               Tab(text: 'Signatures'),
               Tab(text: 'Synchronisation'),
               Tab(text: 'Sécurité'),
+              Tab(text: 'Diagnostic'),
               Tab(text: 'À propos'),
             ],
           ),
@@ -34,6 +36,7 @@ class SettingsScreen extends StatelessWidget {
                 SignaturesScreen(),
                 SyncScreen(),
                 SecurityScreen(),
+                DiagnosticsScreen(),
                 AboutScreen(),
               ],
             ),

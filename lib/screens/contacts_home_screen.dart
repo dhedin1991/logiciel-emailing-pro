@@ -4,7 +4,8 @@ import 'contact_lists_screen.dart';
 import 'email_cleaning_screen.dart';
 
 class ContactsHomeScreen extends StatelessWidget {
-  const ContactsHomeScreen({super.key});
+  final ValueChanged<int>? onNavigate;
+  const ContactsHomeScreen({super.key, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -19,12 +20,12 @@ class ContactsHomeScreen extends StatelessWidget {
               Tab(text: 'Nettoyage e-mails'),
             ],
           ),
-          const Expanded(
+          Expanded(
             child: TabBarView(
               children: [
-                ContactsScreen(),
-                ContactListsScreen(),
-                EmailCleaningScreen(),
+                ContactsScreen(onNavigate: onNavigate),
+                const ContactListsScreen(),
+                const EmailCleaningScreen(),
               ],
             ),
           ),

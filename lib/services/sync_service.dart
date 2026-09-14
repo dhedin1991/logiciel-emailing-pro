@@ -83,6 +83,31 @@ class SyncService {
 
   /// Envoie contacts, modèles et signatures de cet appareil vers le cloud
   /// (écrase ce qui s'y trouvait pour ces catégories).
+  /// Vérifie que le projet Supabase est joignable et correctement
+  /// configuré (utilisé par le centre de diagnostic). Retourne un message
+  /// clair pour l'utilisateur plutôt qu'une exception technique brute.
+  Future<String?> testConnection() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_supabaseUrl/rest/v1/'),
+        headers: {'apikey': _apiKey},
+      ).timeout(const Duration(seconds: 8));
+      if (response.statusCode >= 200 && response.statusCode < 500) {
+        return null; // joignable (même un 401/404 prouve que le serveur répond)
+      }
+      return 'Le serveur a répondu avec une erreur (code ${response.statusCode}).';
+    } catch (e) {
+      final message = e.toString();
+      if (message.contains('SocketException') || message.contains('Failed host lookup')) {
+        return 'Pas de connexion Internet, ou le nom du serveur Supabase est introuvable (vérifiez votre réseau).';
+      }
+      if (message.contains('TimeoutException')) {
+        return 'Le serveur Supabase met trop de temps à répondre (connexion lente ou instable).';
+      }
+      return 'Connexion impossible : $message';
+    }
+  }
+
   Future<void> pushAll() async {
     final contacts = await _contactStorage.loadContacts();
     final templates = await _templateStorage.loadTemplates();

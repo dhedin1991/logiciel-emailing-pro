@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  static const appVersion = '1.0.0';
+  static const appVersion = '1.1.0';
   static const buildNumber = '1';
   static const releaseDate = '2026-08-25';
 

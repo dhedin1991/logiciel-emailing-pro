@@ -11,10 +11,12 @@ import '../services/import_history_storage.dart';
 import '../widgets/confirm_delete.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/sort_menu_button.dart';
+import '../services/compose_prefill.dart';
 import '../widgets/skeleton_loader.dart';
 
 class ContactsScreen extends StatefulWidget {
-  const ContactsScreen({super.key});
+  final ValueChanged<int>? onNavigate;
+  const ContactsScreen({super.key, this.onNavigate});
 
   @override
   State<ContactsScreen> createState() => _ContactsScreenState();
@@ -451,6 +453,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 
+  void _goToComposeWithSelection() {
+    final selected = _contacts.where((c) => _selectedIds.contains(c.id)).toList();
+    if (selected.isEmpty) return;
+    ComposePrefill.instance.pendingContacts = selected;
+    widget.onNavigate?.call(3);
+  }
+
   Future<void> _removeContact(String id) async {
     final contact = _contacts.firstWhere((c) => c.id == id);
     await deleteWithUndo(
@@ -637,6 +646,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 const SizedBox(width: 16),
                 if (_selectedIds.isNotEmpty) Text('${_selectedIds.length} sélectionné(s)'),
                 const Spacer(),
+                if (_selectedIds.isNotEmpty)
+                  FilledButton.icon(
+                    onPressed: _goToComposeWithSelection,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: Text('Rédiger (${_selectedIds.length})'),
+                  ),
+                const SizedBox(width: 12),
                 SortMenuButton(
                   currentField: _sortField,
                   ascending: _sortAscending,
