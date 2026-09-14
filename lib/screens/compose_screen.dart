@@ -13,6 +13,7 @@ import '../services/contact_list_storage.dart';
 import '../services/contact_storage.dart';
 import '../services/email_dispatch_service.dart';
 import '../services/scheduled_email_storage.dart';
+import '../services/history_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
 import '../services/bulk_send_queue_service.dart';
@@ -22,6 +23,7 @@ import '../models/email_draft.dart';
 import '../services/snippet_storage.dart';
 import '../models/snippet.dart';
 import '../services/compose_prefill.dart';
+import '../services/log_service.dart';
 import 'bulk_send_progress_panel.dart';
 import 'email_preview_dialog.dart';
 import 'message_analysis_dialog.dart';
@@ -526,6 +528,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     });
 
     try {
+      final recipientForLog = _toController.text.trim();
       final bodyWithSignature = _selectedSignature != null
           ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
           : _bodyController.text;
@@ -547,12 +550,14 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _bodyController.clear();
         _attachmentPaths.clear();
       });
+      await LogService().log('Envoi simple réussi vers $recipientForLog, compte ${_selectedAccount?.email}');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _statusMessage = "Échec de l'envoi : ${e.toString()}";
         _statusIsError = true;
       });
+      await LogService().log('Échec envoi simple, compte ${_selectedAccount?.email} : ${e.toString()}');
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -577,23 +582,38 @@ class _ComposeScreenState extends State<ComposeScreen> {
       return;
     }
 
-    if (_selectedAccount!.provider == 'gmail' && recipients.length > 450) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Limite Gmail'),
-          content: Text(
-            'Gmail limite les comptes gratuits à environ 500 e-mails/jour. '
-            'Vous êtes sur le point d\'en envoyer ${recipients.length}, ce qui peut faire bloquer temporairement votre compte Google. '
-            'Continuer quand même ?',
+    if (_selectedAccount!.provider == 'gmail') {
+      final today = DateTime.now();
+      final historyToday = await HistoryStorage().loadAll();
+      final sentTodayByThisAccount = historyToday
+          .where((e) =>
+              e.success &&
+              e.accountEmail == _selectedAccount!.email &&
+              e.sentAt.year == today.year &&
+              e.sentAt.month == today.month &&
+              e.sentAt.day == today.day)
+          .length;
+      final projectedTotal = sentTodayByThisAccount + recipients.length;
+      if (projectedTotal > 450) {
+        if (!mounted) return;
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Limite Gmail'),
+            content: Text(
+              'Ce compte a déjà envoyé $sentTodayByThisAccount e-mail(s) aujourd\'hui. Avec cet envoi de '
+              '${recipients.length}, le total atteindrait $projectedTotal, proche ou au-delà de la limite '
+              'Gmail (environ 500/jour), ce qui peut faire bloquer temporairement le compte Google. '
+              'Continuer quand même ?',
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continuer')),
+            ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continuer')),
-          ],
-        ),
-      );
-      if (proceed != true) return;
+        );
+        if (proceed != true) return;
+      }
     }
 
     final minDelay = int.tryParse(_minDelayController.text.trim()) ?? 1500;

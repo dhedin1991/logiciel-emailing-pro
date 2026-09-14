@@ -196,6 +196,12 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
                 label: const Text('Annuler'),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
               ),
+            if (q.canRetryFailed)
+              TextButton.icon(
+                onPressed: q.retryFailed,
+                icon: const Icon(Icons.replay),
+                label: Text('Réessayer les échecs (${q.failedCount})'),
+              ),
             FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
           ],
         );

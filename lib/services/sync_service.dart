@@ -8,6 +8,7 @@ import '../models/signature.dart';
 import 'contact_storage.dart';
 import 'template_storage.dart';
 import 'signature_storage.dart';
+import 'log_service.dart';
 
 /// Synchronise contacts, modèles et signatures entre Windows et Android
 /// via Supabase (gratuit). Les comptes e-mail et leurs jetons de connexion
@@ -128,6 +129,37 @@ class SyncService {
     await _push('templates', templates.map((t) => t.toJson()).toList());
     await _push('signatures', signatures.map((s) => s.toJson()).toList());
     await _secureStorage.write(key: 'last_backup_at', value: DateTime.now().toIso8601String());
+    // Après un envoi, ce qui est sur le cloud correspond exactement à cet
+    // appareil : on marque donc aussi ce moment comme "dernière récupération"
+    // pour que la détection de conflit reste cohérente.
+    await _secureStorage.write(key: 'last_pulled_at', value: DateTime.now().toIso8601String());
+    await LogService().log('Synchro : envoyé vers le cloud (${contacts.length} contacts, ${templates.length} modèles, ${signatures.length} signatures)');
+  }
+
+  /// Date/heure de la dernière modification connue sur le cloud, tous
+  /// types de données confondus (utilisé pour détecter un conflit avant
+  /// d'écraser avec "Envoyer vers le cloud").
+  Future<DateTime?> remoteUpdatedAt() async {
+    final syncCode = await getOrCreateSyncCode();
+    try {
+      final response = await http.get(
+        Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'
+            '?sync_id=eq.$syncCode&select=updated_at&order=updated_at.desc&limit=1'),
+        headers: {'apikey': _apiKey, 'Authorization': 'Bearer $_apiKey'},
+      ).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return null;
+      final list = jsonDecode(response.body) as List<dynamic>;
+      if (list.isEmpty) return null;
+      return DateTime.tryParse(list.first['updated_at'] as String);
+    } catch (_) {
+      return null; // best-effort : une vérification impossible ne doit pas bloquer l'envoi
+    }
+  }
+
+  Future<DateTime?> lastPulledAt() async {
+    final raw = await _secureStorage.read(key: 'last_pulled_at');
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
   }
 
   Future<DateTime?> lastBackupAt() async {
@@ -171,5 +203,7 @@ class SyncService {
           .toList();
       await _signatureStorage.saveSignatures(signatures);
     }
+    await _secureStorage.write(key: 'last_pulled_at', value: DateTime.now().toIso8601String());
+    await LogService().log('Synchro : récupéré depuis le cloud');
   }
 }

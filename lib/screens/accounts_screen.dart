@@ -109,20 +109,26 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
-  Future<void> _showSmtpDialog() async {
-    var selectedPreset = smtpPresets.first;
-    final hostController = TextEditingController(text: selectedPreset.host);
-    final portController = TextEditingController(text: selectedPreset.port.toString());
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-    final nameController = TextEditingController();
+  Future<void> _showSmtpDialog({EmailAccount? existing}) async {
+    final initialPreset = existing != null
+        ? smtpPresets.firstWhere(
+            (p) => p.host == existing.smtpHost,
+            orElse: () => smtpPresets.first,
+          )
+        : smtpPresets.first;
+    var selectedPreset = initialPreset;
+    final hostController = TextEditingController(text: existing?.smtpHost ?? selectedPreset.host);
+    final portController = TextEditingController(text: (existing?.smtpPort ?? selectedPreset.port).toString());
+    final emailController = TextEditingController(text: existing?.email ?? '');
+    final passwordController = TextEditingController(text: existing?.smtpPassword ?? '');
+    final nameController = TextEditingController(text: existing?.displayName ?? '');
     String? errorText;
 
     final account = await showDialog<EmailAccount>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Connecter un autre compte'),
+          title: Text(existing == null ? 'Connecter un autre compte' : 'Modifier le compte'),
           content: SizedBox(
             width: 450,
             child: Column(
@@ -150,7 +156,15 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 const SizedBox(height: 12),
                 TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nom affiché (facultatif)', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Adresse e-mail complète', border: OutlineInputBorder())),
+                TextField(
+                  controller: emailController,
+                  enabled: existing == null,
+                  decoration: InputDecoration(
+                    labelText: 'Adresse e-mail complète',
+                    border: const OutlineInputBorder(),
+                    helperText: existing != null ? 'Non modifiable — supprimez et reconnectez pour changer d\'adresse.' : null,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TextField(controller: hostController, decoration: const InputDecoration(labelText: 'Serveur SMTP', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
@@ -190,10 +204,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     smtpPort: int.tryParse(portController.text.trim()) ?? 587,
                     smtpPassword: passwordController.text,
                     displayName: nameController.text.trim().isEmpty ? null : nameController.text.trim(),
+                    defaultSignatureId: existing?.defaultSignatureId,
                   ),
                 );
               },
-              child: const Text('Connecter'),
+              child: Text(existing == null ? 'Connecter' : 'Enregistrer'),
             ),
           ],
         ),
@@ -311,6 +326,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                                   onPressed: _connecting ? null : () => _reconnectAccount(account.email),
                                   icon: const Icon(Icons.refresh, size: 18),
                                   label: const Text('Reconnecter'),
+                                ),
+                              if (account.provider == 'smtp')
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  tooltip: 'Modifier le compte',
+                                  onPressed: () => _showSmtpDialog(existing: account),
                                 ),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),

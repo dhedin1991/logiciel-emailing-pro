@@ -6,6 +6,7 @@ import 'account_storage.dart';
 import 'email_dispatch_service.dart';
 import 'scheduled_email_storage.dart';
 import 'history_storage.dart';
+import 'log_service.dart';
 
 /// Vérifie régulièrement (tant que l'application est ouverte) si des
 /// e-mails programmés doivent être envoyés, et les envoie automatiquement.
@@ -80,6 +81,8 @@ class SchedulerService {
         } else {
           await _storage.update(email.copyWith(sent: true));
         }
+        await LogService().log('Envoi programmé réussi vers ${email.to}, compte ${email.accountEmail}'
+            '${email.recurrence != null ? ' (récurrent : ${email.recurrence})' : ''}');
       } catch (e) {
         await _historyStorage.add(SentEmailLog(
           id: const Uuid().v4(),
@@ -91,6 +94,7 @@ class SchedulerService {
           errorMessage: e.toString(),
         ));
         await _storage.update(email.copyWith(errorMessage: e.toString()));
+        await LogService().log('Échec envoi programmé vers ${email.to}, compte ${email.accountEmail} : ${e.toString()}');
       }
     }
   }

@@ -49,6 +49,36 @@ class _SyncScreenState extends State<SyncScreen> {
   }
 
   Future<void> _push() async {
+    // Détection de conflit : si le cloud a été modifié depuis la dernière
+    // fois qu'on l'a récupéré ici, prévenir avant d'écraser silencieusement
+    // les changements faits sur l'autre appareil.
+    final remoteUpdatedAt = await _syncService.remoteUpdatedAt();
+    final lastPulled = await _syncService.lastPulledAt();
+    if (!mounted) return;
+    if (remoteUpdatedAt != null && (lastPulled == null || remoteUpdatedAt.isAfter(lastPulled))) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Le cloud a changé'),
+          content: const Text(
+            'Le cloud contient des modifications plus récentes que la dernière fois que vous avez récupéré '
+            'des données ici (probablement faites sur votre autre appareil). '
+            'Envoyer maintenant écrasera ces modifications. '
+            'Il est recommandé de d\'abord cliquer "Récupérer depuis le cloud" pour ne rien perdre.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Envoyer quand même'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     setState(() {
       _busy = true;
       _statusMessage = null;

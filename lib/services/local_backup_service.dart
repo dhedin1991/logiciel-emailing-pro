@@ -8,6 +8,7 @@ import 'contact_storage.dart';
 import 'template_storage.dart';
 import 'signature_storage.dart';
 import 'contact_list_storage.dart';
+import 'log_service.dart';
 
 /// Sauvegarde locale automatique (filet de sécurité en plus de la synchro
 /// cloud) : écrit périodiquement un instantané JSON des contacts, modèles,
@@ -64,6 +65,7 @@ class LocalBackupService {
     final file = File('${dir.path}/backup_$timestamp.json');
     await file.writeAsString(jsonEncode(data));
     await _pruneOldBackups(dir);
+    await LogService().log('Sauvegarde locale créée (${contacts.length} contacts, ${templates.length} modèles, ${signatures.length} signatures)');
     return file;
   }
 

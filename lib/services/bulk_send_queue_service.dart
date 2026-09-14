@@ -7,6 +7,7 @@ import '../models/queue_email_item.dart';
 import '../models/signature.dart';
 import 'email_dispatch_service.dart';
 import 'gmail_auth_service.dart';
+import 'log_service.dart';
 
 /// File d'attente d'envoi strictement séquentielle : un seul e-mail est
 /// traité à la fois (lecture -> génération -> connexion -> envoi ->
@@ -30,6 +31,13 @@ class BulkSendQueueService extends ChangeNotifier {
   int minDelayMs = 1500;
   int maxDelayMs = 1500;
   int maxRetries = 1;
+
+  EmailAccount? _lastAccount;
+  String? _lastSubjectTemplate;
+  String? _lastBodyTemplate;
+  Signature? Function()? _lastSignatureGetter;
+  String Function(String template, QueueEmailItem item)? _lastPersonalize;
+  List<String>? _lastAttachmentPaths;
 
   int get totalCount => items.length;
   int get sentCount => items.where((i) => i.status == QueueItemStatus.sent).length;
@@ -70,6 +78,13 @@ class BulkSendQueueService extends ChangeNotifier {
     required String Function(String template, QueueEmailItem item) personalize,
     required List<String> attachmentPaths,
   }) async {
+    _lastAccount = account;
+    _lastSubjectTemplate = subjectTemplate;
+    _lastBodyTemplate = bodyTemplate;
+    _lastSignatureGetter = signatureGetter;
+    _lastPersonalize = personalize;
+    _lastAttachmentPaths = attachmentPaths;
+
     isRunning = true;
     isCancelled = false;
     isPaused = false;
@@ -185,6 +200,31 @@ class BulkSendQueueService extends ChangeNotifier {
 
     isRunning = false;
     notifyListeners();
+    await LogService().log(
+        'Envoi en masse terminé : $sentCount envoyé(s), $failedCount échec(s) sur $totalCount, compte ${_lastAccount?.email ?? '?'}');
+  }
+
+  bool get canRetryFailed => !isRunning && failedCount > 0 && _lastAccount != null;
+
+  /// Relance uniquement les envois échoués, avec les mêmes réglages que la
+  /// dernière campagne (compte, message, pièces jointes, personnalisation).
+  Future<void> retryFailed() async {
+    if (!canRetryFailed) return;
+    for (final item in items) {
+      if (item.status == QueueItemStatus.failed) {
+        item.status = QueueItemStatus.waiting;
+        item.lastError = null;
+      }
+    }
+    notifyListeners();
+    await start(
+      account: _lastAccount!,
+      subjectTemplate: _lastSubjectTemplate!,
+      bodyTemplate: _lastBodyTemplate!,
+      signatureGetter: _lastSignatureGetter!,
+      personalize: _lastPersonalize!,
+      attachmentPaths: _lastAttachmentPaths!,
+    );
   }
 
   void pause() {

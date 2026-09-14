@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/sync_service.dart';
 import '../services/account_storage.dart';
 import '../services/send_jobs_manager.dart';
+import '../services/log_service.dart';
 import '../models/email_account.dart';
 import '../widgets/screen_header.dart';
 
@@ -97,6 +98,46 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 'En cas de problème persistant, ces informations (sans mot de passe ni donnée personnelle) '
                 'peuvent être utiles pour identifier la cause exacte.',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12.5),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Text('Journal d\'activité', style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () async {
+                      await LogService().clear();
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text('Vider'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              FutureBuilder<List<String>>(
+                future: LogService().readRecent(count: 80),
+                builder: (context, snapshot) {
+                  final lines = snapshot.data ?? [];
+                  if (lines.isEmpty) {
+                    return Text('Aucun événement enregistré pour le moment.', style: TextStyle(color: Colors.grey.shade600));
+                  }
+                  return Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: lines
+                          .map((l) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text(l, style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace')),
+                              ))
+                          .toList(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
