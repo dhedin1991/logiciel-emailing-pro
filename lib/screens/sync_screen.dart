@@ -31,6 +31,8 @@ class _SyncScreenState extends State<SyncScreen> {
   bool _wifiBusy = false;
   String? _wifiStatusMessage;
   bool _wifiStatusIsError = false;
+  bool _wifiScanning = false;
+  List<DiscoveredDevice> _discoveredDevices = [];
 
   @override
   void initState() {
@@ -78,6 +80,24 @@ class _SyncScreenState extends State<SyncScreen> {
     } finally {
       if (mounted) setState(() => _wifiBusy = false);
     }
+  }
+
+  Future<void> _scanForDevices() async {
+    setState(() {
+      _wifiScanning = true;
+      _discoveredDevices = [];
+    });
+    final devices = await LocalWifiSyncServer.discoverDevices();
+    if (!mounted) return;
+    setState(() {
+      _discoveredDevices = devices;
+      _wifiScanning = false;
+      if (devices.isEmpty) {
+        _wifiStatusMessage = 'Aucun appareil trouvé. Vérifiez que l\'autre appareil a bien démarré le serveur '
+            'et que les deux sont sur le même Wi-Fi (pas de VPN actif).';
+        _wifiStatusIsError = true;
+      }
+    });
   }
 
   ({String host, int port})? _parseHostPort() {
@@ -481,12 +501,36 @@ class _SyncScreenState extends State<SyncScreen> {
             const SizedBox(height: 20),
             const Text('Se connecter à un autre appareil', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _wifiScanning ? null : _scanForDevices,
+              icon: _wifiScanning
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.wifi_find),
+              label: Text(_wifiScanning ? 'Recherche en cours...' : 'Rechercher les appareils sur le Wi-Fi'),
+            ),
+            if (_discoveredDevices.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ..._discoveredDevices.map(
+                (d) => Card(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  child: ListTile(
+                    leading: const Icon(Icons.devices_other),
+                    title: Text(d.deviceLabel),
+                    subtitle: Text('${d.host}:${d.port}'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => setState(() => _wifiHostController.text = '${d.host}:${d.port}'),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
             TextField(
               controller: _wifiHostController,
               decoration: const InputDecoration(
                 labelText: 'Adresse de l\'autre appareil (ex : 192.168.1.12:54321)',
                 border: OutlineInputBorder(),
                 isDense: true,
+                helperText: 'Remplie automatiquement en choisissant un appareil trouvé ci-dessus.',
               ),
             ),
             const SizedBox(height: 8),
