@@ -15,6 +15,56 @@ import 'log_service.dart';
 /// signatures et listes dans le dossier de l'application, et ne garde que
 /// les [_maxBackups] plus récentes copies pour ne pas accumuler de fichiers
 /// indéfiniment. Entièrement local, ne dépend d'aucun service externe.
+/// Fusionne un instantané de données (contacts/modèles/signatures, même
+/// format que les sauvegardes locales et la synchro Wi-Fi) dans les données
+/// actuelles de l'appareil — ajoute ce qui manque, n'écrase et ne supprime
+/// jamais rien d'existant.
+Future<void> mergeSyncData(Map<String, dynamic> data) async {
+  final contactStorage = ContactStorage();
+  final existingContacts = await contactStorage.loadContacts();
+  final existingEmails = existingContacts.map((c) => c.email.toLowerCase()).toSet();
+  for (final c in (data['contacts'] as List<dynamic>? ?? [])) {
+    final contact = Contact.fromJson(c as Map<String, dynamic>);
+    if (!existingEmails.contains(contact.email.toLowerCase())) {
+      await contactStorage.addContact(contact);
+    }
+  }
+
+  final templateStorage = TemplateStorage();
+  final existingTemplateIds = (await templateStorage.loadTemplates()).map((t) => t.id).toSet();
+  for (final t in (data['templates'] as List<dynamic>? ?? [])) {
+    final template = MessageTemplate.fromJson(t as Map<String, dynamic>);
+    if (!existingTemplateIds.contains(template.id)) {
+      await templateStorage.addTemplate(template);
+    }
+  }
+
+  final signatureStorage = SignatureStorage();
+  final existingSignatureIds = (await signatureStorage.loadSignatures()).map((s) => s.id).toSet();
+  for (final s in (data['signatures'] as List<dynamic>? ?? [])) {
+    final signature = Signature.fromJson(s as Map<String, dynamic>);
+    if (!existingSignatureIds.contains(signature.id)) {
+      await signatureStorage.addSignature(signature);
+    }
+  }
+}
+
+/// Construit l'instantané JSON (mêmes clés que les sauvegardes locales)
+/// des données actuellement sur l'appareil.
+Future<Map<String, dynamic>> buildSyncSnapshot() async {
+  final contacts = await ContactStorage().loadContacts();
+  final templates = await TemplateStorage().loadTemplates();
+  final signatures = await SignatureStorage().loadSignatures();
+  final lists = await ContactListStorage().loadAll();
+  return {
+    'createdAt': DateTime.now().toIso8601String(),
+    'contacts': contacts.map((c) => c.toJson()).toList(),
+    'templates': templates.map((t) => t.toJson()).toList(),
+    'signatures': signatures.map((s) => s.toJson()).toList(),
+    'contactLists': lists.map((l) => l.toJson()).toList(),
+  };
+}
+
 class LocalBackupService {
   static const _maxBackups = 5;
   static const _minIntervalHours = 24;
@@ -91,33 +141,6 @@ class LocalBackupService {
   /// les données actuelles (fusion, jamais de suppression).
   Future<void> restoreBackup(File file) async {
     final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-
-    final contactStorage = ContactStorage();
-    final existingContacts = await contactStorage.loadContacts();
-    final existingEmails = existingContacts.map((c) => c.email.toLowerCase()).toSet();
-    for (final c in (data['contacts'] as List<dynamic>? ?? [])) {
-      final contact = Contact.fromJson(c as Map<String, dynamic>);
-      if (!existingEmails.contains(contact.email.toLowerCase())) {
-        await contactStorage.addContact(contact);
-      }
-    }
-
-    final templateStorage = TemplateStorage();
-    final existingTemplateIds = (await templateStorage.loadTemplates()).map((t) => t.id).toSet();
-    for (final t in (data['templates'] as List<dynamic>? ?? [])) {
-      final template = MessageTemplate.fromJson(t as Map<String, dynamic>);
-      if (!existingTemplateIds.contains(template.id)) {
-        await templateStorage.addTemplate(template);
-      }
-    }
-
-    final signatureStorage = SignatureStorage();
-    final existingSignatureIds = (await signatureStorage.loadSignatures()).map((s) => s.id).toSet();
-    for (final s in (data['signatures'] as List<dynamic>? ?? [])) {
-      final signature = Signature.fromJson(s as Map<String, dynamic>);
-      if (!existingSignatureIds.contains(signature.id)) {
-        await signatureStorage.addSignature(signature);
-      }
-    }
+    await mergeSyncData(data);
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../services/sync_service.dart';
 import '../services/local_backup_service.dart';
+import '../services/local_wifi_sync_service.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -23,6 +24,14 @@ class _SyncScreenState extends State<SyncScreen> {
   final _localBackupService = LocalBackupService();
   bool _creatingBackup = false;
 
+  // Synchro Wi-Fi locale.
+  final _wifiHostController = TextEditingController();
+  final _wifiCodeController = TextEditingController();
+  List<String> _wifiLocalAddresses = [];
+  bool _wifiBusy = false;
+  String? _wifiStatusMessage;
+  bool _wifiStatusIsError = false;
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +41,116 @@ class _SyncScreenState extends State<SyncScreen> {
   @override
   void dispose() {
     _codeInputController.dispose();
+    _wifiHostController.dispose();
+    _wifiCodeController.dispose();
+    LocalWifiSyncServer.instance.stop();
     super.dispose();
+  }
+
+  Future<void> _toggleWifiServer() async {
+    setState(() => _wifiBusy = true);
+    try {
+      if (LocalWifiSyncServer.instance.isRunning) {
+        await LocalWifiSyncServer.instance.stop();
+        if (!mounted) return;
+        setState(() {
+          _wifiStatusMessage = 'Serveur arrêté.';
+          _wifiStatusIsError = false;
+        });
+      } else {
+        await LocalWifiSyncServer.instance.start();
+        final addresses = await LocalWifiSyncServer.localAddresses();
+        if (!mounted) return;
+        setState(() {
+          _wifiLocalAddresses = addresses;
+          _wifiStatusMessage = addresses.isEmpty
+              ? 'Serveur démarré, mais aucune adresse réseau locale détectée — vérifiez que le Wi-Fi est actif.'
+              : null;
+          _wifiStatusIsError = addresses.isEmpty;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _wifiStatusMessage = friendlyWifiSyncError(e);
+        _wifiStatusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _wifiBusy = false);
+    }
+  }
+
+  ({String host, int port})? _parseHostPort() {
+    final raw = _wifiHostController.text.trim();
+    final parts = raw.split(':');
+    if (parts.length != 2) return null;
+    final port = int.tryParse(parts[1]);
+    if (port == null) return null;
+    return (host: parts[0], port: port);
+  }
+
+  Future<void> _wifiPush() async {
+    final parsed = _parseHostPort();
+    final code = _wifiCodeController.text.trim();
+    if (parsed == null || code.isEmpty) {
+      setState(() {
+        _wifiStatusMessage = 'Renseignez l\'adresse (ex : 192.168.1.12:54321) et le code affiché sur l\'autre appareil.';
+        _wifiStatusIsError = true;
+      });
+      return;
+    }
+    setState(() {
+      _wifiBusy = true;
+      _wifiStatusMessage = null;
+    });
+    try {
+      await LocalWifiSyncClient().pushTo(parsed.host, parsed.port, code);
+      if (!mounted) return;
+      setState(() {
+        _wifiStatusMessage = 'Données envoyées avec succès vers l\'autre appareil.';
+        _wifiStatusIsError = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _wifiStatusMessage = friendlyWifiSyncError(e);
+        _wifiStatusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _wifiBusy = false);
+    }
+  }
+
+  Future<void> _wifiPull() async {
+    final parsed = _parseHostPort();
+    final code = _wifiCodeController.text.trim();
+    if (parsed == null || code.isEmpty) {
+      setState(() {
+        _wifiStatusMessage = 'Renseignez l\'adresse (ex : 192.168.1.12:54321) et le code affiché sur l\'autre appareil.';
+        _wifiStatusIsError = true;
+      });
+      return;
+    }
+    setState(() {
+      _wifiBusy = true;
+      _wifiStatusMessage = null;
+    });
+    try {
+      await LocalWifiSyncClient().pullFrom(parsed.host, parsed.port, code);
+      if (!mounted) return;
+      setState(() {
+        _wifiStatusMessage = 'Données récupérées avec succès depuis l\'autre appareil.';
+        _wifiStatusIsError = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _wifiStatusMessage = friendlyWifiSyncError(e);
+        _wifiStatusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _wifiBusy = false);
+    }
   }
 
   Future<void> _load() async {
@@ -308,6 +426,100 @@ class _SyncScreenState extends State<SyncScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(_statusMessage!, style: TextStyle(color: _statusIsError ? Colors.red : Colors.green)),
+              ),
+            const Divider(height: 40),
+            Text('Synchronisation Wi-Fi (réseau local)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Transférez vos contacts, modèles et signatures directement entre deux appareils sur le même '
+              'Wi-Fi, sans passer par Internet. Un appareil démarre le serveur, l\'autre s\'y connecte avec '
+              'l\'adresse et le code affichés.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _wifiBusy ? null : _toggleWifiServer,
+                  icon: Icon(LocalWifiSyncServer.instance.isRunning ? Icons.stop_circle_outlined : Icons.wifi_tethering),
+                  label: Text(LocalWifiSyncServer.instance.isRunning ? 'Arrêter le serveur' : 'Démarrer le serveur ici'),
+                ),
+              ],
+            ),
+            if (LocalWifiSyncServer.instance.isRunning) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Sur l\'autre appareil, saisissez :', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    if (_wifiLocalAddresses.isEmpty)
+                      const Text('Adresse réseau introuvable — vérifiez que le Wi-Fi est bien actif.')
+                    else
+                      ..._wifiLocalAddresses.map(
+                        (addr) => SelectableText(
+                          'Adresse : $addr:${LocalWifiSyncServer.instance.port}',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace'),
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    SelectableText(
+                      'Code : ${LocalWifiSyncServer.instance.pairingCode}',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18, letterSpacing: 2),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            const Text('Se connecter à un autre appareil', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _wifiHostController,
+              decoration: const InputDecoration(
+                labelText: 'Adresse de l\'autre appareil (ex : 192.168.1.12:54321)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _wifiCodeController,
+              decoration: const InputDecoration(
+                labelText: 'Code affiché sur l\'autre appareil',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: _wifiBusy ? null : _wifiPush,
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Envoyer vers cet appareil'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _wifiBusy ? null : _wifiPull,
+                  icon: const Icon(Icons.download),
+                  label: const Text('Récupérer depuis cet appareil'),
+                ),
+              ],
+            ),
+            if (_wifiStatusMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_wifiStatusMessage!, style: TextStyle(color: _wifiStatusIsError ? Colors.red : Colors.green)),
               ),
             const Divider(height: 40),
             Text('Sauvegarde locale automatique', style: Theme.of(context).textTheme.titleMedium),
