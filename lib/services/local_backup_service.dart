@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/contact.dart';
 import '../models/message_template.dart';
@@ -142,5 +144,47 @@ class LocalBackupService {
   Future<void> restoreBackup(File file) async {
     final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
     await mergeSyncData(data);
+  }
+
+  /// Exporte les données actuelles vers un fichier choisi par l'utilisateur
+  /// (boîte de dialogue "Enregistrer sous") — pour l'envoyer ensuite vers
+  /// un autre appareil par n'importe quel moyen déjà utilisé (e-mail,
+  /// WhatsApp, Google Drive...), sans dépendre d'un réseau entre les deux
+  /// appareils. Retourne false si l'utilisateur annule.
+  Future<bool> exportToChosenLocation() async {
+    final snapshot = await buildSyncSnapshot();
+    final bytes = Uint8List.fromList(utf8.encode(jsonEncode(snapshot)));
+    final timestamp = DateTime.now().toIso8601String().split('T').first;
+    final path = await FilePicker.platform.saveFile(
+      fileName: 'emailing-pro-sauvegarde-$timestamp.json',
+      bytes: bytes,
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    if (path == null) return false;
+    final file = File(path);
+    if (!await file.exists() || await file.length() == 0) {
+      await file.writeAsBytes(bytes);
+    }
+    await LogService().log('Sauvegarde exportée vers un fichier choisi par l\'utilisateur');
+    return true;
+  }
+
+  /// Importe un fichier de sauvegarde choisi par l'utilisateur (reçu par
+  /// e-mail, WhatsApp, Google Drive, clé USB...) et fusionne son contenu
+  /// avec les données actuelles — jamais d'écrasement. Retourne false si
+  /// l'utilisateur annule.
+  Future<bool> importFromChosenFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return false;
+    final content = utf8.decode(result.files.single.bytes!);
+    final data = jsonDecode(content) as Map<String, dynamic>;
+    await mergeSyncData(data);
+    await LogService().log('Sauvegarde importée depuis un fichier choisi par l\'utilisateur');
+    return true;
   }
 }

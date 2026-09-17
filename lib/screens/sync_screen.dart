@@ -34,6 +34,62 @@ class _SyncScreenState extends State<SyncScreen> {
   bool _wifiScanning = false;
   List<DiscoveredDevice> _discoveredDevices = [];
 
+  // Transfert par fichier.
+  bool _fileBusy = false;
+  String? _fileStatusMessage;
+  bool _fileStatusIsError = false;
+
+  Future<void> _exportToFile() async {
+    setState(() {
+      _fileBusy = true;
+      _fileStatusMessage = null;
+    });
+    try {
+      final exported = await _localBackupService.exportToChosenLocation();
+      if (!mounted) return;
+      setState(() {
+        if (exported) {
+          _fileStatusMessage = 'Fichier exporté. Envoyez-le maintenant à l\'autre appareil (WhatsApp, e-mail...), '
+              'puis utilisez "Importer un fichier reçu" là-bas.';
+          _fileStatusIsError = false;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _fileStatusMessage = 'Échec de l\'export : ${e.toString()}';
+        _fileStatusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _fileBusy = false);
+    }
+  }
+
+  Future<void> _importFromFile() async {
+    setState(() {
+      _fileBusy = true;
+      _fileStatusMessage = null;
+    });
+    try {
+      final imported = await _localBackupService.importFromChosenFile();
+      if (!mounted) return;
+      setState(() {
+        if (imported) {
+          _fileStatusMessage = 'Import terminé : les contacts, modèles et signatures du fichier ont été ajoutés.';
+          _fileStatusIsError = false;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _fileStatusMessage = 'Échec de l\'import — vérifiez que le fichier est bien une sauvegarde exportée par l\'application : ${e.toString()}';
+        _fileStatusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _fileBusy = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -564,6 +620,42 @@ class _SyncScreenState extends State<SyncScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(_wifiStatusMessage!, style: TextStyle(color: _wifiStatusIsError ? Colors.red : Colors.green)),
+              ),
+            const Divider(height: 40),
+            Row(
+              children: [
+                const Icon(Icons.verified_outlined, color: Colors.green, size: 20),
+                const SizedBox(width: 8),
+                Text('Transfert par fichier (le plus fiable)', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ne dépend d\'aucun réseau entre les deux appareils. Exportez un fichier ici, envoyez-le vous-même '
+              'à l\'autre appareil (WhatsApp, e-mail, Google Drive...), puis importez-le là-bas.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: _fileBusy ? null : _exportToFile,
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: const Text('Exporter vers un fichier'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _fileBusy ? null : _importFromFile,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Importer un fichier reçu'),
+                ),
+              ],
+            ),
+            if (_fileStatusMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_fileStatusMessage!, style: TextStyle(color: _fileStatusIsError ? Colors.red : Colors.green)),
               ),
             const Divider(height: 40),
             Text('Sauvegarde locale automatique', style: Theme.of(context).textTheme.titleMedium),

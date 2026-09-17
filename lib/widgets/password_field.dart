@@ -35,6 +35,17 @@ class _PasswordFieldState extends State<PasswordField> {
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       obscureText: !_visible,
+      // Sur Android, un champ mot de passe masqué combiné à la correction
+      // automatique du clavier provoque un bug connu : la "zone de
+      // composition" du clavier se désynchronise du texte réel, ce qui fait
+      // qu'effacer une lettre semble ne rien faire ou fait réapparaître la
+      // lettre juste effacée. Désactiver la correction/suggestions sur ce
+      // type de champ est la correction recommandée par Flutter, pas un
+      // contournement approximatif.
+      autocorrect: false,
+      enableSuggestions: false,
+      enableIMEPersonalizedLearning: false,
+      keyboardType: TextInputType.visiblePassword,
       onSubmitted: widget.onSubmitted,
       decoration: InputDecoration(
         labelText: widget.labelText,
