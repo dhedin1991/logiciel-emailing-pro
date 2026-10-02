@@ -1,4 +1,0 @@
-Taille base64: 75210464
-Pas de fichier existant ou erreur GET: <HTTPError 404: 'Not Found'>
-ERREUR PUT: <HTTPError 422: 'Unprocessable Entity'>
-{"message":"Sorry, the file is too large to be processed. Consider creating/updating the file in a local clone and pushing it to GitHub.","documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}
