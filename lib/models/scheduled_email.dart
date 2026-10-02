@@ -12,6 +12,9 @@ class ScheduledEmail {
   final String? errorMessage;
   /// null = envoi unique ; sinon 'daily', 'weekly', ou 'monthly'.
   final String? recurrence;
+  /// Nombre d'échecs consécutifs ; au-delà de la limite, l'envoi est abandonné.
+  final int failCount;
+  final DateTime? lastAttemptAt;
 
   ScheduledEmail({
     required this.id,
@@ -25,6 +28,8 @@ class ScheduledEmail {
     this.sent = false,
     this.errorMessage,
     this.recurrence,
+    this.failCount = 0,
+    this.lastAttemptAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +44,8 @@ class ScheduledEmail {
         'sent': sent,
         'errorMessage': errorMessage,
         'recurrence': recurrence,
+        'failCount': failCount,
+        'lastAttemptAt': lastAttemptAt?.toIso8601String(),
       };
 
   factory ScheduledEmail.fromJson(Map<String, dynamic> json) => ScheduledEmail(
@@ -53,9 +60,19 @@ class ScheduledEmail {
         sent: json['sent'] as bool? ?? false,
         errorMessage: json['errorMessage'] as String?,
         recurrence: json['recurrence'] as String?,
+        failCount: json['failCount'] as int? ?? 0,
+        lastAttemptAt: json['lastAttemptAt'] != null ? DateTime.parse(json['lastAttemptAt'] as String) : null,
       );
 
-  ScheduledEmail copyWith({bool? sent, String? errorMessage, DateTime? sendAt}) => ScheduledEmail(
+  ScheduledEmail copyWith({
+    bool? sent,
+    String? errorMessage,
+    bool clearError = false,
+    DateTime? sendAt,
+    int? failCount,
+    DateTime? lastAttemptAt,
+  }) =>
+      ScheduledEmail(
         id: id,
         accountEmail: accountEmail,
         to: to,
@@ -65,7 +82,9 @@ class ScheduledEmail {
         attachmentPaths: attachmentPaths,
         sendAt: sendAt ?? this.sendAt,
         sent: sent ?? this.sent,
-        errorMessage: errorMessage ?? this.errorMessage,
+        errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
         recurrence: recurrence,
+        failCount: failCount ?? this.failCount,
+        lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
       );
 }

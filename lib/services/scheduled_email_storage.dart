@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/scheduled_email.dart';
@@ -5,6 +6,20 @@ import '../models/scheduled_email.dart';
 class ScheduledEmailStorage {
   static const _key = 'scheduled_emails';
   final _storage = const FlutterSecureStorage();
+  static Future<void> _queue = Future.value();
+
+  /// Verrou : empêche le planificateur et l'interface de s'écraser mutuellement.
+  Future<T> _locked<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _queue = _queue.then((_) async {
+      try {
+        completer.complete(await action());
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
 
   Future<List<ScheduledEmail>> loadAll() async {
     final raw = await _storage.read(key: _key);
@@ -18,24 +33,24 @@ class ScheduledEmailStorage {
     await _storage.write(key: _key, value: raw);
   }
 
-  Future<void> add(ScheduledEmail item) async {
-    final items = await loadAll();
-    items.add(item);
-    await saveAll(items);
-  }
+  Future<void> add(ScheduledEmail item) => _locked(() async {
+        final items = await loadAll();
+        items.add(item);
+        await saveAll(items);
+      });
 
-  Future<void> remove(String id) async {
-    final items = await loadAll();
-    items.removeWhere((e) => e.id == id);
-    await saveAll(items);
-  }
+  Future<void> remove(String id) => _locked(() async {
+        final items = await loadAll();
+        items.removeWhere((e) => e.id == id);
+        await saveAll(items);
+      });
 
-  Future<void> update(ScheduledEmail updated) async {
-    final items = await loadAll();
-    final index = items.indexWhere((e) => e.id == updated.id);
-    if (index >= 0) {
-      items[index] = updated;
-      await saveAll(items);
-    }
-  }
+  Future<void> update(ScheduledEmail updated) => _locked(() async {
+        final items = await loadAll();
+        final index = items.indexWhere((e) => e.id == updated.id);
+        if (index >= 0) {
+          items[index] = updated;
+          await saveAll(items);
+        }
+      });
 }

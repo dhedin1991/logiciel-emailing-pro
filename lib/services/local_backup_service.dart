@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/contact.dart';
+import '../models/contact_list.dart';
 import '../models/message_template.dart';
 import '../models/signature.dart';
 import 'contact_storage.dart';
@@ -24,13 +25,47 @@ import 'log_service.dart';
 Future<void> mergeSyncData(Map<String, dynamic> data) async {
   final contactStorage = ContactStorage();
   final existingContacts = await contactStorage.loadContacts();
-  final existingEmails = existingContacts.map((c) => c.email.toLowerCase()).toSet();
+  final localIdByEmail = {for (final c in existingContacts) c.email.toLowerCase(): c.id};
+
+  // Correspondance : id du contact sur l'autre appareil -> id local (par e-mail),
+  // pour que les listes importées pointent vers les bons contacts.
+  final idMap = <String, String>{};
+  final toAdd = <Contact>[];
   for (final c in (data['contacts'] as List<dynamic>? ?? [])) {
     final contact = Contact.fromJson(c as Map<String, dynamic>);
-    if (!existingEmails.contains(contact.email.toLowerCase())) {
-      await contactStorage.addContact(contact);
+    final key = contact.email.toLowerCase();
+    final localId = localIdByEmail[key];
+    if (localId != null) {
+      idMap[contact.id] = localId;
+    } else {
+      idMap[contact.id] = contact.id;
+      localIdByEmail[key] = contact.id;
+      toAdd.add(contact);
     }
   }
+  // Un seul cycle lecture/écriture pour tous les contacts (au lieu d'un par contact).
+  if (toAdd.isNotEmpty) await contactStorage.addContacts(toAdd);
+
+  final listStorage = ContactListStorage();
+  final localLists = await listStorage.loadAll();
+  var listsChanged = false;
+  for (final l in (data['contactLists'] as List<dynamic>? ?? [])) {
+    final incoming = ContactList.fromJson(l as Map<String, dynamic>);
+    final mappedIds = incoming.contactIds.map((id) => idMap[id] ?? id).toSet();
+    final index = localLists.indexWhere((x) => x.id == incoming.id);
+    if (index < 0) {
+      localLists.add(ContactList(id: incoming.id, name: incoming.name, contactIds: mappedIds.toList()));
+      listsChanged = true;
+    } else {
+      final merged = {...localLists[index].contactIds, ...mappedIds};
+      if (merged.length != localLists[index].contactIds.length) {
+        localLists[index] = ContactList(
+            id: localLists[index].id, name: localLists[index].name, contactIds: merged.toList());
+        listsChanged = true;
+      }
+    }
+  }
+  if (listsChanged) await listStorage.saveAll(localLists);
 
   final templateStorage = TemplateStorage();
   final existingTemplateIds = (await templateStorage.loadTemplates()).map((t) => t.id).toSet();

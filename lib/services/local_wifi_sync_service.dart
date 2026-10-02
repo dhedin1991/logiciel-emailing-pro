@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'local_backup_service.dart';
 import 'log_service.dart';
@@ -44,9 +45,14 @@ class LocalWifiSyncServer {
   static final instance = LocalWifiSyncServer._();
   LocalWifiSyncServer._();
 
+  static const _maxFailedAttempts = 5;
+  static const _autoStopAfter = Duration(minutes: 5);
+
   HttpServer? _server;
   RawDatagramSocket? _discoverySocket;
   String? pairingCode;
+  int _failedAttempts = 0;
+  Timer? _expiryTimer;
 
   bool get isRunning => _server != null;
   int? get port => _server?.port;
@@ -54,8 +60,13 @@ class LocalWifiSyncServer {
   /// Démarre le serveur et retourne le code de vérification à afficher.
   Future<String> start() async {
     await stop();
-    pairingCode = (100000 + DateTime.now().millisecondsSinceEpoch % 900000).toString();
+    // Code imprévisible (et non plus dérivé de l'heure).
+    pairingCode = (100000 + Random.secure().nextInt(900000)).toString();
+    _failedAttempts = 0;
     _server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    // Le serveur ne reste jamais ouvert indéfiniment.
+    _expiryTimer?.cancel();
+    _expiryTimer = Timer(_autoStopAfter, () => stop());
     await LogService().log('Synchro Wi-Fi : serveur démarré sur le port ${_server!.port}');
     _server!.listen((HttpRequest request) async {
       try {
@@ -63,7 +74,7 @@ class LocalWifiSyncServer {
       } catch (e) {
         try {
           request.response.statusCode = 500;
-          request.response.write(jsonEncode({'error': e.toString()}));
+          request.response.write(jsonEncode({'error': 'Erreur interne.'}));
           await request.response.close();
         } catch (_) {}
       }
@@ -97,7 +108,16 @@ class LocalWifiSyncServer {
 
   Future<void> _handleRequest(HttpRequest request) async {
     final code = request.uri.queryParameters['code'];
-    if (code != pairingCode) {
+    if (_failedAttempts >= _maxFailedAttempts) {
+      // Trop d'essais ratés : le serveur se ferme pour empêcher de deviner le code.
+      request.response.statusCode = 429;
+      request.response.write(jsonEncode({'error': 'Trop d\'essais. Relancez la synchro.'}));
+      await request.response.close();
+      unawaited(stop());
+      return;
+    }
+    if (code == null || code != pairingCode) {
+      _failedAttempts++;
       request.response.statusCode = 403;
       request.response.write(jsonEncode({'error': 'Code incorrect.'}));
       await request.response.close();
@@ -134,6 +154,8 @@ class LocalWifiSyncServer {
   }
 
   Future<void> stop() async {
+    _expiryTimer?.cancel();
+    _expiryTimer = null;
     await _server?.close(force: true);
     _server = null;
     pairingCode = null;
