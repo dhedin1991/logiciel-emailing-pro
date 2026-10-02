@@ -583,16 +583,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
     }
 
     if (_selectedAccount!.provider == 'gmail') {
-      final today = DateTime.now();
-      final historyToday = await HistoryStorage().loadAll();
-      final sentTodayByThisAccount = historyToday
-          .where((e) =>
-              e.success &&
-              e.accountEmail == _selectedAccount!.email &&
-              e.sentAt.year == today.year &&
-              e.sentAt.month == today.month &&
-              e.sentAt.day == today.day)
-          .length;
+      final sentTodayByThisAccount =
+          await HistoryStorage().countSuccessToday(_selectedAccount!.email);
       final projectedTotal = sentTodayByThisAccount + recipients.length;
       if (projectedTotal > 450) {
         if (!mounted) return;

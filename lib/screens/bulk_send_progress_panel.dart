@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/queue_email_item.dart';
 import '../services/bulk_send_queue_service.dart';
+import '../services/deliverability_service.dart';
 
 String _statusIcon(QueueItemStatus status) {
   switch (status) {
@@ -202,10 +203,51 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
                 icon: const Icon(Icons.replay),
                 label: Text('Réessayer les échecs (${q.failedCount})'),
               ),
+            if (!q.isRunning && q.sentCount > 0 && q.lastAccount?.provider == 'gmail')
+              TextButton.icon(
+                onPressed: () => _checkDeliverability(context, q),
+                icon: const Icon(Icons.mark_email_unread_outlined),
+                label: const Text('Vérifier la réception'),
+              ),
             FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
           ],
         );
       },
+    );
+  }
+
+  Future<void> _checkDeliverability(BuildContext context, BulkSendQueueService q) async {
+    final account = q.lastAccount;
+    final since = q.startedAt;
+    if (account == null || since == null) return;
+    String message;
+    try {
+      final bounces = await DeliverabilityService()
+          .findBounces(account, since: since.subtract(const Duration(minutes: 1)));
+      final sentEmails = q.items
+          .where((i) => i.status == QueueItemStatus.sent)
+          .map((i) => i.email.toLowerCase())
+          .toSet();
+      final mine = bounces.where((b) => sentEmails.contains(b.address.toLowerCase())).toList();
+      if (mine.isEmpty) {
+        message = 'Aucun retour d\'erreur trouvé : Gmail n\'a signalé aucun refus pour cette campagne.\n\n'
+            'Si certains destinataires ne reçoivent rien, le message est probablement classé en courrier '
+            'indésirable chez eux (rien ne revient à l\'expéditeur dans ce cas).';
+      } else {
+        message = '${mine.length} adresse(s) ont refusé le message après envoi :\n\n' +
+            mine.map((b) => '• ${b.address}\n  ${b.reason}').join('\n\n');
+      }
+    } catch (e) {
+      message = 'Vérification impossible : $e\n\nSi le message parle d\'autorisation, reconnectez le compte Gmail.';
+    }
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Réception des e-mails'),
+        content: SingleChildScrollView(child: Text(message)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+      ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import '../models/email_account.dart';
 import 'gmail_send_service.dart';
+import 'mime_utils.dart';
 import 'smtp_send_service.dart';
 
 /// Point d'entrée unique pour envoyer un e-mail, quel que soit le
@@ -14,9 +15,11 @@ class EmailDispatchService {
     required String to,
     required String subject,
     required String body,
+    String? htmlBody,
     String? cc,
     String? bcc,
     List<String> attachmentPaths = const [],
+    List<MimeAttachment>? preloadedAttachments,
   }) {
     if (account.provider == 'gmail') {
       return _gmailService.sendEmail(
@@ -24,9 +27,11 @@ class EmailDispatchService {
         to: to,
         subject: subject,
         body: body,
+        htmlBody: htmlBody,
         cc: cc,
         bcc: bcc,
         attachmentPaths: attachmentPaths,
+        preloadedAttachments: preloadedAttachments,
       );
     }
     return _smtpService.sendEmail(
@@ -34,9 +39,11 @@ class EmailDispatchService {
       to: to,
       subject: subject,
       body: body,
+      htmlBody: htmlBody,
       cc: cc,
       bcc: bcc,
       attachmentPaths: attachmentPaths,
+      preloadedAttachments: preloadedAttachments,
     );
   }
 }

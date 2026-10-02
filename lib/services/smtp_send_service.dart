@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/email_account.dart';
 import '../models/sent_email_log.dart';
 import 'history_storage.dart';
+import 'mime_utils.dart';
 
 /// Fournisseurs SMTP courants pré-configurés (hôte + port).
 class SmtpPreset {
@@ -31,11 +32,18 @@ class SmtpSendService {
     required String to,
     required String subject,
     required String body,
+    String? htmlBody,
     String? cc,
     String? bcc,
     List<String> attachmentPaths = const [],
+    List<MimeAttachment>? preloadedAttachments,
   }) async {
     try {
+      final toList = MimeUtils.parseAddresses(to, field: 'Destinataire');
+      if (toList.isEmpty) throw const FormatException('Aucun destinataire.');
+      final ccList = MimeUtils.parseAddresses(cc, field: 'Cc');
+      final bccList = MimeUtils.parseAddresses(bcc, field: 'Cci');
+
       final smtpServer = SmtpServer(
         account.smtpHost!,
         port: account.smtpPort ?? 587,
@@ -45,31 +53,19 @@ class SmtpSendService {
       );
 
       final message = Message()
-        ..from = Address(account.email, account.displayName ?? account.email)
-        ..recipients.addAll(to.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty))
-        ..subject = subject
+        ..from = Address(MimeUtils.cleanHeader(account.email),
+            MimeUtils.cleanHeader(account.displayName ?? account.email))
+        ..recipients.addAll(toList)
+        ..ccRecipients.addAll(ccList)
+        ..bccRecipients.addAll(bccList)
+        ..subject = MimeUtils.cleanHeader(subject)
         ..text = body;
-
-      if (cc != null && cc.trim().isNotEmpty) {
-        message.ccRecipients.addAll(cc.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
-      }
-      if (bcc != null && bcc.trim().isNotEmpty) {
-        message.bccRecipients.addAll(bcc.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
-      }
+      if (htmlBody != null) message.html = htmlBody;
       for (final path in attachmentPaths) {
         message.attachments.add(FileAttachment(File(path)));
       }
 
-      await send(message, smtpServer);
-
-      await _historyStorage.add(SentEmailLog(
-        id: _uuid.v4(),
-        accountEmail: account.email,
-        to: to,
-        subject: subject,
-        sentAt: DateTime.now(),
-        success: true,
-      ));
+      await send(message, smtpServer, timeout: const Duration(seconds: 60));
     } catch (e) {
       await _historyStorage.add(SentEmailLog(
         id: _uuid.v4(),
@@ -82,5 +78,14 @@ class SmtpSendService {
       ));
       rethrow;
     }
+
+    await _historyStorage.add(SentEmailLog(
+      id: _uuid.v4(),
+      accountEmail: account.email,
+      to: to,
+      subject: subject,
+      sentAt: DateTime.now(),
+      success: true,
+    ));
   }
 }

@@ -8,6 +8,7 @@ import '../models/signature.dart';
 import 'email_dispatch_service.dart';
 import 'gmail_auth_service.dart';
 import 'log_service.dart';
+import 'mime_utils.dart';
 
 /// File d'attente d'envoi strictement séquentielle : un seul e-mail est
 /// traité à la fois (lecture -> génération -> connexion -> envoi ->
@@ -38,6 +39,9 @@ class BulkSendQueueService extends ChangeNotifier {
   Signature? Function()? _lastSignatureGetter;
   String Function(String template, QueueEmailItem item)? _lastPersonalize;
   List<String>? _lastAttachmentPaths;
+
+  EmailAccount? get lastAccount => _lastAccount;
+  DateTime? get startedAt => _startedAt;
 
   int get totalCount => items.length;
   int get sentCount => items.where((i) => i.status == QueueItemStatus.sent).length;
@@ -91,6 +95,19 @@ class BulkSendQueueService extends ChangeNotifier {
     _startedAt = DateTime.now();
     notifyListeners();
 
+    // Pièces jointes lues et encodées UNE seule fois pour toute la campagne.
+    List<MimeAttachment>? preloaded;
+    if (account.provider == 'gmail' && attachmentPaths.isNotEmpty) {
+      try {
+        preloaded = await MimeUtils.loadAttachments(attachmentPaths);
+      } catch (e) {
+        abortReason = 'Pièce jointe illisible : $e';
+        isRunning = false;
+        notifyListeners();
+        return;
+      }
+    }
+
     for (final item in items) {
       if (isCancelled) break;
 
@@ -130,6 +147,7 @@ class BulkSendQueueService extends ChangeNotifier {
             subject: personalizedSubject,
             body: personalizedBody,
             attachmentPaths: attachmentPaths,
+            preloadedAttachments: preloaded,
           );
 
           item.status = QueueItemStatus.verifying;
