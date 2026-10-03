@@ -28,6 +28,9 @@ class SendJobsManager extends ChangeNotifier {
   }
 
   void removeFinishedJobs() {
+    for (final job in jobs.where((j) => !j.queue.isRunning)) {
+      job.queue.removeListener(notifyListeners);
+    }
     jobs.removeWhere((j) => !j.queue.isRunning);
     notifyListeners();
   }

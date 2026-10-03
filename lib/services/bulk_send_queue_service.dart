@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:mailer/mailer.dart' show PersistentConnection;
 import '../models/contact.dart';
 import '../models/email_account.dart';
 import '../models/queue_email_item.dart';
@@ -33,12 +34,34 @@ class BulkSendQueueService extends ChangeNotifier {
   int maxDelayMs = 1500;
   int maxRetries = 1;
 
+  PersistentConnection? _smtpConnection;
+
+  Future<void> _closeSmtp() async {
+    final c = _smtpConnection;
+    _smtpConnection = null;
+    try {
+      await c?.close();
+    } catch (_) {}
+  }
+
   EmailAccount? _lastAccount;
   String? _lastSubjectTemplate;
   String? _lastBodyTemplate;
   Signature? Function()? _lastSignatureGetter;
   String Function(String template, QueueEmailItem item)? _lastPersonalize;
   List<String>? _lastAttachmentPaths;
+
+  // Rafraîchissement d'écran limité : au plus ~5 fois par seconde, au lieu
+  // d'environ 6 fois PAR e-mail (cause de ralentissements en masse).
+  DateTime _lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _maxLogs = 300;
+
+  void _notifyThrottled() {
+    final now = DateTime.now();
+    if (now.difference(_lastNotify).inMilliseconds < 200) return;
+    _lastNotify = now;
+    notifyListeners();
+  }
 
   EmailAccount? get lastAccount => _lastAccount;
   DateTime? get startedAt => _startedAt;
@@ -108,6 +131,7 @@ class BulkSendQueueService extends ChangeNotifier {
       }
     }
 
+    try {
     for (final item in items) {
       if (isCancelled) break;
 
@@ -124,7 +148,7 @@ class BulkSendQueueService extends ChangeNotifier {
         attempt++;
         item.attempts = attempt;
         item.status = attempt == 1 ? QueueItemStatus.preparing : QueueItemStatus.retrying;
-        notifyListeners();
+        _notifyThrottled();
 
         final personalizedSubject = personalize(subjectTemplate, item);
         var personalizedBody = personalize(bodyTemplate, item);
@@ -134,13 +158,16 @@ class BulkSendQueueService extends ChangeNotifier {
         }
 
         item.status = QueueItemStatus.connectingSmtp;
-        notifyListeners();
+        _notifyThrottled();
         final stopwatch = Stopwatch()..start();
 
         try {
           item.status = QueueItemStatus.sending;
-          notifyListeners();
+          _notifyThrottled();
 
+          if (account.provider != 'gmail' && _smtpConnection == null) {
+            _smtpConnection = await _dispatchService.openSmtpConnection(account);
+          }
           await _dispatchService.sendEmail(
             account: account,
             to: item.email,
@@ -148,10 +175,11 @@ class BulkSendQueueService extends ChangeNotifier {
             body: personalizedBody,
             attachmentPaths: attachmentPaths,
             preloadedAttachments: preloaded,
+            smtpConnection: _smtpConnection,
           );
 
           item.status = QueueItemStatus.verifying;
-          notifyListeners();
+          _notifyThrottled();
           stopwatch.stop();
 
           item.status = QueueItemStatus.sent;
@@ -166,6 +194,7 @@ class BulkSendQueueService extends ChangeNotifier {
             success: true,
             durationMs: stopwatch.elapsedMilliseconds,
           ));
+          if (logs.length > _maxLogs) logs.removeRange(_maxLogs, logs.length);
         } catch (e) {
           stopwatch.stop();
           item.lastError = e.toString();
@@ -177,6 +206,9 @@ class BulkSendQueueService extends ChangeNotifier {
             durationMs: stopwatch.elapsedMilliseconds,
             errorMessage: e.toString(),
           ));
+          if (logs.length > _maxLogs) logs.removeRange(_maxLogs, logs.length);
+          // La connexion SMTP a peut-être été coupée : on en rouvre une au prochain essai.
+          await _closeSmtp();
 
           // Une connexion expirée/révoquée touche TOUT le compte, pas ce seul
           // destinataire : inutile (et très long) de retenter sur chacun des
@@ -200,7 +232,7 @@ class BulkSendQueueService extends ChangeNotifier {
             item.status = QueueItemStatus.failed;
           }
         }
-        notifyListeners();
+        _notifyThrottled();
       }
 
       if (isCancelled) {
@@ -214,6 +246,10 @@ class BulkSendQueueService extends ChangeNotifier {
           ? minDelayMs
           : minDelayMs + Random().nextInt(maxDelayMs - minDelayMs + 1);
       await Future.delayed(Duration(milliseconds: delay));
+    }
+
+    } finally {
+      await _closeSmtp();
     }
 
     isRunning = false;

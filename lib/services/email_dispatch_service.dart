@@ -1,6 +1,7 @@
 import '../models/email_account.dart';
 import 'gmail_send_service.dart';
 import 'mime_utils.dart';
+import 'package:mailer/mailer.dart' show PersistentConnection;
 import 'smtp_send_service.dart';
 
 /// Point d'entrée unique pour envoyer un e-mail, quel que soit le
@@ -9,6 +10,9 @@ import 'smtp_send_service.dart';
 class EmailDispatchService {
   final _gmailService = GmailSendService();
   final _smtpService = SmtpSendService();
+
+  Future<PersistentConnection> openSmtpConnection(EmailAccount account) =>
+      _smtpService.openConnection(account);
 
   Future<void> sendEmail({
     required EmailAccount account,
@@ -20,6 +24,7 @@ class EmailDispatchService {
     String? bcc,
     List<String> attachmentPaths = const [],
     List<MimeAttachment>? preloadedAttachments,
+    PersistentConnection? smtpConnection,
   }) {
     if (account.provider == 'gmail') {
       return _gmailService.sendEmail(
@@ -44,6 +49,7 @@ class EmailDispatchService {
       bcc: bcc,
       attachmentPaths: attachmentPaths,
       preloadedAttachments: preloadedAttachments,
+      connection: smtpConnection,
     );
   }
 }

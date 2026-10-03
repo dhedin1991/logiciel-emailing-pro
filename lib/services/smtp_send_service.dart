@@ -27,6 +27,19 @@ class SmtpSendService {
   final _historyStorage = HistoryStorage();
   final _uuid = const Uuid();
 
+  static SmtpServer _serverFor(EmailAccount account) => SmtpServer(
+        account.smtpHost!,
+        port: account.smtpPort ?? 587,
+        username: account.email,
+        password: account.smtpPassword,
+        ssl: account.smtpPort == 465,
+      );
+
+  /// Ouvre UNE connexion SMTP réutilisable pendant toute une campagne
+  /// (au lieu d'une nouvelle connexion + authentification par e-mail).
+  Future<PersistentConnection> openConnection(EmailAccount account) =>
+      PersistentConnection.connect(_serverFor(account));
+
   Future<void> sendEmail({
     required EmailAccount account,
     required String to,
@@ -37,20 +50,13 @@ class SmtpSendService {
     String? bcc,
     List<String> attachmentPaths = const [],
     List<MimeAttachment>? preloadedAttachments,
+    PersistentConnection? connection,
   }) async {
     try {
       final toList = MimeUtils.parseAddresses(to, field: 'Destinataire');
       if (toList.isEmpty) throw const FormatException('Aucun destinataire.');
       final ccList = MimeUtils.parseAddresses(cc, field: 'Cc');
       final bccList = MimeUtils.parseAddresses(bcc, field: 'Cci');
-
-      final smtpServer = SmtpServer(
-        account.smtpHost!,
-        port: account.smtpPort ?? 587,
-        username: account.email,
-        password: account.smtpPassword,
-        ssl: account.smtpPort == 465,
-      );
 
       final message = Message()
         ..from = Address(MimeUtils.cleanHeader(account.email),
@@ -65,7 +71,11 @@ class SmtpSendService {
         message.attachments.add(FileAttachment(File(path)));
       }
 
-      await send(message, smtpServer, timeout: const Duration(seconds: 60));
+      if (connection != null) {
+        await connection.send(message);
+      } else {
+        await send(message, _serverFor(account), timeout: const Duration(seconds: 60));
+      }
     } catch (e) {
       await _historyStorage.add(SentEmailLog(
         id: _uuid.v4(),
