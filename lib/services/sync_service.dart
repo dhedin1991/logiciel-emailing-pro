@@ -92,6 +92,7 @@ class SyncService {
           headers: {
             'apikey': _apiKey,
             'Authorization': 'Bearer $_apiKey',
+            'x-sync-id': syncCode,
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates',
           },
@@ -114,6 +115,7 @@ class SyncService {
           headers: {
             'apikey': _apiKey,
             'Authorization': 'Bearer $_apiKey',
+            'x-sync-id': syncCode,
           },
         ));
     if (response.statusCode >= 300) {
@@ -172,7 +174,7 @@ class SyncService {
           .get(
             Uri.parse('$_supabaseUrl/rest/v1/sync_blobs'
                 '?sync_id=eq.$syncCode&select=updated_at&order=updated_at.desc&limit=1'),
-            headers: {'apikey': _apiKey, 'Authorization': 'Bearer $_apiKey'},
+            headers: {'apikey': _apiKey, 'Authorization': 'Bearer $_apiKey', 'x-sync-id': syncCode},
           )
           .timeout(const Duration(seconds: 8)));
       if (response.statusCode != 200) return null;

@@ -34,7 +34,8 @@ class GmailAuthService {
   // dans sa documentation officielle.
   static const _clientId =
       '291397891123-1sgk9m5tsrrbp22nugi63rgrgmg2upp1.apps.googleusercontent.com';
-  static const _clientSecret = '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';
+  // Fourni à la compilation (--dart-define=GOOGLE_CLIENT_SECRET=...), jamais écrit dans le code source.
+  static const _clientSecret = String.fromEnvironment('GOOGLE_CLIENT_SECRET');
 
   static const _authEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
   static const _tokenEndpoint = 'https://oauth2.googleapis.com/token';

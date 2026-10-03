@@ -101,6 +101,13 @@ jobs:
         shell: cmd
         run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
 
+      - name: Vérifier la présence du secret Google
+        shell: pwsh
+        env:
+          GOOGLE_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:GOOGLE_SECRET)) { Write-Host "::error::Le secret GOOGLE_CLIENT_SECRET est absent."; exit 1 }
+
       - run: flutter pub get
 
       - run: flutter config --enable-windows-desktop
@@ -110,7 +117,7 @@ jobs:
         env:
           CMAKE_GENERATOR: "Visual Studio 17 2022"
         run: |
-          flutter build windows --release --build-number=${{ github.run_number }} 2>&1 | Tee-Object -FilePath build-logs-windows.txt
+          flutter build windows --release --build-number=${{ github.run_number }} --dart-define=GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} 2>&1 | Tee-Object -FilePath build-logs-windows.txt
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       # NOUVEAU : permet de télécharger l'application depuis GitHub Actions
@@ -173,6 +180,12 @@ jobs:
         run: |
           cp /tmp/pubspec_custom.yaml pubspec.yaml
           cp /tmp/main_custom.dart lib/main.dart
+
+      - name: Vérifier la présence du secret Google
+        env:
+          GOOGLE_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -z "$GOOGLE_SECRET" ]; then echo "::error::Le secret GOOGLE_CLIENT_SECRET est absent (GitHub > Settings > Secrets > Actions)."; exit 1; fi
 
       - run: flutter pub get
 
@@ -258,7 +271,7 @@ jobs:
       - name: Compiler Android
         run: |
           set -o pipefail
-          flutter build apk --release --build-number=${{ github.run_number }} 2>&1 | tee build-logs-android.txt
+          flutter build apk --release --build-number=${{ github.run_number }} --dart-define=GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} 2>&1 | tee build-logs-android.txt
 
       # NOUVEAU : permet de télécharger l'APK depuis GitHub Actions
       - name: Télécharger l'APK Android
