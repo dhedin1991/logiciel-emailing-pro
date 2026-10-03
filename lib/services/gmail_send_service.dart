@@ -33,6 +33,7 @@ class GmailSendService {
     String? bcc,
     List<String> attachmentPaths = const [],
     List<MimeAttachment>? preloadedAttachments,
+    Map<String, String> extraHeaders = const {},
   }) async {
     var currentAccount = account;
     final recipientForLog = to;
@@ -60,6 +61,7 @@ class GmailSendService {
         textBody: body,
         htmlBody: htmlBody,
         attachments: attachments,
+        extraHeaders: extraHeaders,
       );
 
       final encodedMessage = base64Url.encode(utf8.encode(message)).replaceAll('=', '');

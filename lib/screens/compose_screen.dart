@@ -598,16 +598,29 @@ class _ComposeScreenState extends State<ComposeScreen> {
         return;
       }
     }
-    final bodyWithSignature = composeBody(_bodyController.text, _selectedSignature).text;
-    final toDisplay = _bulkMode
-        ? '${_selectedContactIds.length} destinataire(s) sélectionné(s)'
-        : _toController.text;
+    var previewSubject = _subjectController.text;
+    var previewBody = _bodyController.text;
+    var toDisplay = _toController.text;
+    if (_bulkMode) {
+      final selected = _contacts.where((c) => _selectedContactIds.contains(c.id)).toList();
+      final excluded = selected.where(_isUnsubscribed).length;
+      toDisplay = '${selected.length - excluded} destinataire(s)'
+          '${excluded > 0 ? ' ($excluded « Ne plus contacter » exclu(s))' : ''}';
+      // Aperçu tel que le recevra le premier destinataire ({{nom}}, {{email}}, {{entreprise}} remplacés).
+      final first = selected.where((c) => !_isUnsubscribed(c)).firstOrNull;
+      if (first != null) {
+        previewSubject = _personalize(previewSubject, first);
+        previewBody = _personalize(previewBody, first);
+        toDisplay += ' — aperçu pour : ${first.name.isEmpty ? first.email : first.name}';
+      }
+    }
+    final bodyWithSignature = composeBody(previewBody, _selectedSignature).text;
     final confirmed = await showEmailPreviewDialog(
       context,
       from: _selectedAccount!.email,
       to: toDisplay,
       cc: _bulkMode ? null : _ccController.text,
-      subject: _subjectController.text,
+      subject: previewSubject,
       body: bodyWithSignature,
       attachmentPaths: _bulkMode ? const [] : List.of(_attachmentPaths),
     );
@@ -615,6 +628,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
       await _send();
     }
   }
+
+  /// Contact à ne plus solliciter (statut ou étiquette « Ne plus contacter »).
+  bool _isUnsubscribed(Contact c) =>
+      c.status == 'Ne plus contacter' || c.tags.contains('Ne plus contacter');
 
   static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
@@ -685,6 +702,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   Future<void> _sendBulk() async {
     final recipients = _contacts.where((c) => _selectedContactIds.contains(c.id)).toList();
+    // Les contacts « Ne plus contacter » ne reçoivent jamais d'envoi en masse.
+    final excludedCount = recipients.where(_isUnsubscribed).length;
+    recipients.removeWhere(_isUnsubscribed);
+    if (excludedCount > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$excludedCount contact(s) « Ne plus contacter » exclu(s) de l\'envoi.'),
+        duration: const Duration(seconds: 4),
+      ));
+    }
     if (recipients.isEmpty) {
       setState(() {
         _statusMessage = 'Sélectionnez au moins un contact.';

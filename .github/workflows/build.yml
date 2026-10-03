@@ -27,6 +27,31 @@ jobs:
             --notes "Builds automatiques Windows et Android (remplacés à chaque compilation)." \
             --prerelease
 
+  tests:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - run: flutter pub get
+
+      - name: Tests automatiques (file d'envoi, e-mails, signatures)
+        run: flutter test 2>&1 | tee test-results.txt
+
+      - name: Publier le résultat des tests si échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tail -120 test-results.txt > /tmp/erreurs-tests.txt
+          gh release upload latest /tmp/erreurs-tests.txt --clobber --repo "$GITHUB_REPOSITORY" || true
+
   build-windows:
     needs: prepare-release
     runs-on: windows-latest

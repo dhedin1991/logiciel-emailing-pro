@@ -184,6 +184,11 @@ class BulkSendQueueService extends ChangeNotifier {
             attachmentPaths: attachmentPaths,
             preloadedAttachments: preloaded,
             smtpConnection: _smtpConnection,
+            // Lien « se désinscrire » natif des messageries (améliore la délivrabilité) :
+            // la demande arrive par e-mail sur le compte expéditeur.
+            extraHeaders: {
+              'List-Unsubscribe': '<mailto:${account.email}?subject=Desinscription>',
+            },
           );
 
           item.status = QueueItemStatus.verifying;

@@ -25,6 +25,7 @@ class EmailDispatchService {
     List<String> attachmentPaths = const [],
     List<MimeAttachment>? preloadedAttachments,
     PersistentConnection? smtpConnection,
+    Map<String, String> extraHeaders = const {},
   }) {
     if (account.provider == 'gmail') {
       return _gmailService.sendEmail(
@@ -37,6 +38,7 @@ class EmailDispatchService {
         bcc: bcc,
         attachmentPaths: attachmentPaths,
         preloadedAttachments: preloadedAttachments,
+        extraHeaders: extraHeaders,
       );
     }
     return _smtpService.sendEmail(
@@ -50,6 +52,7 @@ class EmailDispatchService {
       attachmentPaths: attachmentPaths,
       preloadedAttachments: preloadedAttachments,
       connection: smtpConnection,
+      extraHeaders: extraHeaders,
     );
   }
 }

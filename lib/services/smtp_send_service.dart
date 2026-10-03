@@ -51,6 +51,7 @@ class SmtpSendService {
     List<String> attachmentPaths = const [],
     List<MimeAttachment>? preloadedAttachments,
     PersistentConnection? connection,
+    Map<String, String> extraHeaders = const {},
   }) async {
     try {
       final toList = MimeUtils.parseAddresses(to, field: 'Destinataire');
@@ -67,6 +68,7 @@ class SmtpSendService {
         ..subject = MimeUtils.cleanHeader(subject)
         ..text = body;
       if (htmlBody != null) message.html = htmlBody;
+      extraHeaders.forEach((k, v) => message.headers[k] = MimeUtils.cleanHeader(v));
       for (final path in attachmentPaths) {
         message.attachments.add(FileAttachment(File(path)));
       }
