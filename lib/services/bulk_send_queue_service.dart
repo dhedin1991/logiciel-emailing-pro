@@ -109,6 +109,7 @@ class BulkSendQueueService extends ChangeNotifier {
     required List<String> attachmentPaths,
     String? htmlBodyTemplate,
     String Function(String template, QueueEmailItem item)? personalizeHtml,
+    Future<void> Function(List<QueueEmailItem> items)? onProgress,
   }) async {
     _lastHtmlBodyTemplate = htmlBodyTemplate;
     _lastPersonalizeHtml = personalizeHtml;
@@ -253,6 +254,11 @@ class BulkSendQueueService extends ChangeNotifier {
         notifyListeners();
         break;
       }
+
+      // Progression sauvegardée (reprise possible si l'application s'arrête).
+      try {
+        await onProgress?.call(items);
+      } catch (_) {}
 
       // Délai configurable (fixe ou aléatoire dans une plage) avant le suivant.
       final delay = minDelayMs == maxDelayMs

@@ -22,9 +22,13 @@ import 'screens/onboarding_dialog.dart';
 import 'screens/drafts_screen.dart';
 import 'screens/trash_screen.dart';
 import 'services/trash_service.dart';
+import 'widgets/resume_campaign.dart';
 import 'services/trash_restorers.dart';
 
 void main() {
+  // Police Inter intégrée à l'application (assets/google_fonts) : plus de
+  // téléchargement à l'exécution, démarrage plus rapide et affichage hors ligne.
+  GoogleFonts.config.allowRuntimeFetching = false;
   runApp(const EmailingProApp());
 }
 
@@ -229,6 +233,11 @@ class _HomeShellState extends State<HomeShell> {
     TrashService.instance.refresh();
     _scheduler.start();
     _maybeShowOnboarding();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) offerCampaignResume(context);
+      });
+    });
   }
 
   Future<void> _maybeShowOnboarding() async {

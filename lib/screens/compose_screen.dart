@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import '../widgets/rich_body_editor.dart';
+import '../services/campaign_recovery_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -778,6 +779,21 @@ class _ComposeScreenState extends State<ComposeScreen> {
     // Lancé en arrière-plan : ne bloque pas l'écran, l'utilisateur peut
     // continuer à utiliser l'application (autre rédaction, autre compte...)
     // pendant que cette campagne avance, un e-mail à la fois.
+    await CampaignRecoveryService.save(CampaignState(
+      accountEmail: account.email,
+      subjectTemplate: subjectTemplate,
+      bodyTemplate: bodyTemplate,
+      htmlBodyTemplate: htmlTemplate,
+      signatureId: signature?.id,
+      attachmentPaths: attachments,
+      minDelayMs: minDelay,
+      maxDelayMs: maxDelay,
+      maxRetries: retries,
+      totalCount: recipients.length,
+      remainingContactIds: recipients.map((c) => c.id).toList(),
+      startedAt: DateTime.now(),
+    ));
+
     unawaited(queue.start(
       account: account,
       subjectTemplate: subjectTemplate,
@@ -787,7 +803,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
       attachmentPaths: attachments,
       htmlBodyTemplate: htmlTemplate,
       personalizeHtml: (template, item) => _personalizeItemHtml(template, item),
-    ));
+      onProgress: CampaignRecoveryService.updateProgress,
+    ).whenComplete(CampaignRecoveryService.clear));
 
     if (!mounted) return;
     // Ouvre directement la fenêtre de suivi complète (statuts détaillés,
