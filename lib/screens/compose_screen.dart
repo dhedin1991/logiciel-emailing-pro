@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import '../widgets/rich_body_editor.dart';
+import '../widgets/deliverability_help_dialog.dart';
+import '../widgets/daily_send_counter.dart';
 import '../services/campaign_recovery_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -153,12 +155,19 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final _minDelayController = TextEditingController(text: '1500');
   final _maxDelayController = TextEditingController(text: '3000');
   final _retriesController = TextEditingController(text: '1');
+  // Rythme prudent par défaut : 100 e-mails par heure et par compte (0 = illimité).
+  int _counterTick = 0;
+  Timer? _counterTimer;
+  final _hourlyCapController = TextEditingController(text: '100');
   bool _randomDelay = true;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _counterTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() => _counterTick++);
+    });
     _subjectController.addListener(_scheduleAutosave);
     _bodyController.addListener(_scheduleAutosave);
     if (_rich) {
@@ -699,6 +708,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _attachmentPaths.clear();
       });
       await _discardCurrentDraft();
+      if (mounted) setState(() => _counterTick++);
       await LogService().log('Envoi simple réussi vers $recipientForLog, compte ${_selectedAccount?.email}');
     } catch (e) {
       if (!mounted) return;
@@ -769,9 +779,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final minDelay = int.tryParse(_minDelayController.text.trim()) ?? 1500;
     final maxDelay = _randomDelay ? (int.tryParse(_maxDelayController.text.trim()) ?? minDelay) : minDelay;
     final retries = int.tryParse(_retriesController.text.trim()) ?? 1;
+    final hourlyCap = (int.tryParse(_hourlyCapController.text.trim()) ?? 100).clamp(0, 100000);
 
     final queue = BulkSendQueueService();
-    queue.configure(contacts: recipients, minDelayMs: minDelay, maxDelayMs: maxDelay, maxRetries: retries);
+    queue.configure(contacts: recipients, minDelayMs: minDelay, maxDelayMs: maxDelay, maxRetries: retries, maxPerHour: hourlyCap);
 
     final account = _selectedAccount!;
     final subjectTemplate = _subjectController.text;
@@ -800,6 +811,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       minDelayMs: minDelay,
       maxDelayMs: maxDelay,
       maxRetries: retries,
+      maxPerHour: hourlyCap,
       totalCount: recipients.length,
       remainingContactIds: recipients.map((c) => c.id).toList(),
       startedAt: DateTime.now(),
@@ -859,6 +871,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
     _minDelayController.dispose();
     _maxDelayController.dispose();
     _retriesController.dispose();
+    _hourlyCapController.dispose();
+    _counterTimer?.cancel();
     super.dispose();
   }
 
@@ -923,6 +937,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 }
               }),
             ),
+            if (_selectedAccount != null)
+              DailySendCounter(account: _selectedAccount!, refreshTick: _counterTick),
             const SizedBox(height: 12),
             if (_bulkMode) ...[
               InfoNotice(
@@ -1016,6 +1032,24 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _hourlyCapController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Maximum d\'e-mails par heure (0 = illimité)',
+                  helperText: 'Recommandé : 100 par heure, surtout avec un compte récent. '
+                      'La campagne se met en pause toute seule puis reprend.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _selectedAccount == null
+                    ? null
+                    : () => showDeliverabilityHelp(context, _selectedAccount!),
+                icon: const Icon(Icons.shield_outlined),
+                label: const Text('Conseils de délivrabilité (SPF, DKIM, DMARC)'),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

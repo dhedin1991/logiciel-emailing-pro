@@ -39,13 +39,78 @@ class _SyncScreenState extends State<SyncScreen> {
   String? _fileStatusMessage;
   bool _fileStatusIsError = false;
 
+  /// Demande le mot de passe de chiffrement du fichier exporté.
+  /// Retourne null si annulé, '' pour un export sans chiffrement.
+  Future<String?> _askExportPassphrase() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Protéger la sauvegarde'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Le fichier contient vos contacts. Choisissez un mot de passe pour le chiffrer : '
+              'il sera demandé à l\'import sur l\'autre appareil. Notez-le : il ne peut pas être retrouvé.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Mot de passe (4 caractères minimum)', border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(context, ''), child: const Text('Sans mot de passe')),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.length >= 4) Navigator.pop(context, controller.text);
+            },
+            child: const Text('Chiffrer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<String?> _askImportPassphrase() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sauvegarde protégée'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Mot de passe de la sauvegarde', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Ouvrir')),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _exportToFile() async {
+    final passphrase = await _askExportPassphrase();
+    if (passphrase == null || !mounted) return;
     setState(() {
       _fileBusy = true;
       _fileStatusMessage = null;
     });
     try {
-      final exported = await _localBackupService.exportToChosenLocation();
+      final exported = await _localBackupService.exportToChosenLocation(passphrase: passphrase);
       if (!mounted) return;
       setState(() {
         if (exported) {
@@ -71,7 +136,7 @@ class _SyncScreenState extends State<SyncScreen> {
       _fileStatusMessage = null;
     });
     try {
-      final imported = await _localBackupService.importFromChosenFile();
+      final imported = await _localBackupService.importFromChosenFile(askPassphrase: _askImportPassphrase);
       if (!mounted) return;
       setState(() {
         if (imported) {

@@ -92,6 +92,7 @@ Future<void> offerCampaignResume(BuildContext context) async {
     minDelayMs: state.minDelayMs,
     maxDelayMs: state.maxDelayMs,
     maxRetries: state.maxRetries,
+    maxPerHour: state.maxPerHour,
   );
 
   await CampaignRecoveryService.save(state.withRemaining(recipients.map((c) => c.id).toList()));

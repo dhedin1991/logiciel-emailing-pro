@@ -35,6 +35,29 @@ class BulkSendQueueService extends ChangeNotifier {
   int maxDelayMs = 1500;
   int maxRetries = 1;
 
+  /// Nombre maximum d'e-mails par heure pour un même compte (0 = illimité).
+  /// Protège la réputation du compte : un rythme trop rapide fait classer les messages en spam.
+  int maxPerHour = 0;
+  DateTime? quotaWaitUntil;
+  static final Map<String, List<DateTime>> _hourlySends = {};
+
+  Future<void> _waitForQuota(String accountEmail) async {
+    if (maxPerHour <= 0) return;
+    final list = _hourlySends.putIfAbsent(accountEmail, () => []);
+    while (!isCancelled) {
+      final cutoff = DateTime.now().subtract(const Duration(hours: 1));
+      list.removeWhere((t) => t.isBefore(cutoff));
+      if (list.length < maxPerHour) break;
+      quotaWaitUntil = list.first.add(const Duration(hours: 1));
+      notifyListeners();
+      await Future.delayed(const Duration(seconds: 5));
+    }
+    if (quotaWaitUntil != null) {
+      quotaWaitUntil = null;
+      notifyListeners();
+    }
+  }
+
   PersistentConnection? _smtpConnection;
 
   Future<void> _closeSmtp() async {
@@ -85,7 +108,7 @@ class BulkSendQueueService extends ChangeNotifier {
     return Duration(milliseconds: (avgMs * remainingCount).round());
   }
 
-  void configure({required List<Contact> contacts, int minDelayMs = 1500, int maxDelayMs = 1500, int maxRetries = 1}) {
+  void configure({required List<Contact> contacts, int minDelayMs = 1500, int maxDelayMs = 1500, int maxRetries = 1, int maxPerHour = 0}) {
     items
       ..clear()
       ..addAll(contacts.map((c) => QueueEmailItem(contactId: c.id, name: c.name, email: c.email, company: c.company)));
@@ -93,6 +116,8 @@ class BulkSendQueueService extends ChangeNotifier {
     this.minDelayMs = minDelayMs;
     this.maxDelayMs = maxDelayMs.clamp(minDelayMs, 1 << 30);
     this.maxRetries = maxRetries;
+    this.maxPerHour = maxPerHour;
+    quotaWaitUntil = null;
     isCancelled = false;
     isPaused = false;
     isRunning = false;
@@ -149,6 +174,9 @@ class BulkSendQueueService extends ChangeNotifier {
       if (isCancelled) break;
       if (item.status == QueueItemStatus.sent) continue;
 
+      await _waitForQuota(account.email);
+      if (isCancelled) break;
+
       var attempt = 0;
       var success = false;
 
@@ -196,6 +224,7 @@ class BulkSendQueueService extends ChangeNotifier {
           _notifyThrottled();
           stopwatch.stop();
 
+          if (maxPerHour > 0) _hourlySends.putIfAbsent(account.email, () => []).add(DateTime.now());
           item.status = QueueItemStatus.sent;
           item.sentAt = DateTime.now();
           item.durationMs = stopwatch.elapsedMilliseconds;

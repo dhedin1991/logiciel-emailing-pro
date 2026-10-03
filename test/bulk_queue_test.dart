@@ -92,4 +92,17 @@ void main() {
     await q.retryFailed();
     expect(fake.sentTo, isEmpty); // b échoue encore ; a et c ne sont pas renvoyés
   });
+
+  test('quota horaire : pause quand le maximum est atteint', () async {
+    final fake = _FakeDispatch();
+    final q = BulkSendQueueService(dispatchService: fake);
+    q.configure(contacts: _contacts(), minDelayMs: 0, maxDelayMs: 0, maxRetries: 0, maxPerHour: 1);
+    final running = _run(q);
+    await Future.delayed(const Duration(milliseconds: 500));
+    expect(fake.sentTo.length, 1); // un seul envoi, puis pause
+    expect(q.quotaWaitUntil, isNotNull);
+    q.cancel();
+    await running;
+    expect(fake.sentTo.length, 1);
+  });
 }

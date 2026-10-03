@@ -15,6 +15,7 @@ class CampaignState {
   final int minDelayMs;
   final int maxDelayMs;
   final int maxRetries;
+  final int maxPerHour;
   final int totalCount;
   final List<String> remainingContactIds;
   final DateTime startedAt;
@@ -29,6 +30,7 @@ class CampaignState {
     required this.minDelayMs,
     required this.maxDelayMs,
     required this.maxRetries,
+    this.maxPerHour = 0,
     required this.totalCount,
     required this.remainingContactIds,
     required this.startedAt,
@@ -44,6 +46,7 @@ class CampaignState {
         minDelayMs: minDelayMs,
         maxDelayMs: maxDelayMs,
         maxRetries: maxRetries,
+        maxPerHour: maxPerHour,
         totalCount: totalCount,
         remainingContactIds: ids,
         startedAt: startedAt,
@@ -59,6 +62,7 @@ class CampaignState {
         'minDelayMs': minDelayMs,
         'maxDelayMs': maxDelayMs,
         'maxRetries': maxRetries,
+        'maxPerHour': maxPerHour,
         'totalCount': totalCount,
         'remainingContactIds': remainingContactIds,
         'startedAt': startedAt.toIso8601String(),
@@ -74,6 +78,7 @@ class CampaignState {
         minDelayMs: j['minDelayMs'] as int? ?? 1500,
         maxDelayMs: j['maxDelayMs'] as int? ?? 1500,
         maxRetries: j['maxRetries'] as int? ?? 1,
+        maxPerHour: j['maxPerHour'] as int? ?? 0,
         totalCount: j['totalCount'] as int? ?? 0,
         remainingContactIds: (j['remainingContactIds'] as List<dynamic>? ?? []).cast<String>(),
         startedAt: DateTime.parse(j['startedAt'] as String),

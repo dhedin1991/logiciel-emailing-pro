@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/queue_email_item.dart';
 import '../services/bulk_send_queue_service.dart';
 import '../services/deliverability_service.dart';
+import '../services/contact_storage.dart';
 
 String _statusIcon(QueueItemStatus status) {
   switch (status) {
@@ -131,6 +132,28 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
                       ],
                     ),
                   ),
+                if (q.isRunning && q.quotaWaitUntil != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.pause_circle_outline, color: Colors.orange, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Pause : maximum de ${q.maxPerHour} e-mails par heure atteint. '
+                            'Reprise automatique vers '
+                            '${q.quotaWaitUntil!.hour.toString().padLeft(2, '0')}:${q.quotaWaitUntil!.minute.toString().padLeft(2, '0')}.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 Expanded(
                   child: DefaultTabController(
@@ -221,6 +244,7 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
     final since = q.startedAt;
     if (account == null || since == null) return;
     String message;
+    List<BounceInfo> refused = const [];
     try {
       final bounces = await DeliverabilityService()
           .findBounces(account, since: since.subtract(const Duration(minutes: 1)));
@@ -234,6 +258,7 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
             'Si certains destinataires ne reçoivent rien, le message est probablement classé en courrier '
             'indésirable chez eux (rien ne revient à l\'expéditeur dans ce cas).';
       } else {
+        refused = mine;
         message = '${mine.length} adresse(s) ont refusé le message après envoi :\n\n' +
             mine.map((b) => '• ${b.address}\n  ${b.reason}').join('\n\n');
       }
@@ -241,13 +266,37 @@ class _BulkSendProgressPanelState extends State<BulkSendProgressPanel> {
       message = 'Vérification impossible : $e\n\nSi le message parle d\'autorisation, reconnectez le compte Gmail.';
     }
     if (!context.mounted) return;
-    await showDialog<void>(
+    final markThem = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Réception des e-mails'),
         content: SingleChildScrollView(child: Text(message)),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('OK')),
+          if (refused.isNotEmpty)
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Marquer ces ${refused.length} adresses « Ne plus contacter »'),
+            ),
+        ],
       ),
     );
+    if (markThem == true) {
+      final storage = ContactStorage();
+      final addresses = refused.map((b) => b.address.toLowerCase()).toSet();
+      final contacts = await storage.loadContacts();
+      var changed = 0;
+      for (final c in contacts) {
+        if (addresses.contains(c.email.toLowerCase()) && c.status != 'Ne plus contacter') {
+          await storage.updateContact(c.copyWith(status: 'Ne plus contacter'));
+          changed++;
+        }
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$changed contact(s) marqué(s) « Ne plus contacter » : ils ne recevront plus d\'envoi en masse.'),
+        ));
+      }
+    }
   }
 }

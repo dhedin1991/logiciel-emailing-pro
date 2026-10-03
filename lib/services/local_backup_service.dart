@@ -12,6 +12,7 @@ import 'template_storage.dart';
 import 'signature_storage.dart';
 import 'contact_list_storage.dart';
 import 'log_service.dart';
+import 'backup_crypto.dart';
 
 /// Sauvegarde locale automatique (filet de sécurité en plus de la synchro
 /// cloud) : écrit périodiquement un instantané JSON des contacts, modèles,
@@ -127,8 +128,24 @@ class LocalBackupService {
         if (DateTime.now().difference(lastModified).inHours < _minIntervalHours) return;
       }
       await createBackupNow();
+      await _encryptLegacyBackups();
     } catch (_) {
       // Non bloquant : la sauvegarde locale ne doit jamais empêcher l'app de démarrer.
+    }
+  }
+
+  /// Les anciennes sauvegardes (créées avant le chiffrement) sont chiffrées sur place.
+  Future<void> _encryptLegacyBackups() async {
+    final dir = await _backupDir();
+    await for (final entity in dir.list()) {
+      if (!entity.path.endsWith('.json')) continue;
+      try {
+        final file = File(entity.path);
+        final content = await file.readAsString();
+        if (!BackupCrypto.isEncrypted(content)) {
+          await file.writeAsString(await BackupCrypto.encrypt(content));
+        }
+      } catch (_) {}
     }
   }
 
@@ -150,7 +167,8 @@ class LocalBackupService {
     final dir = await _backupDir();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final file = File('${dir.path}/backup_$timestamp.json');
-    await file.writeAsString(jsonEncode(data));
+    // Sauvegarde automatique chiffrée avec la clé de l'appareil (AES-256).
+    await file.writeAsString(await BackupCrypto.encrypt(jsonEncode(data)));
     await _pruneOldBackups(dir);
     await LogService().log('Sauvegarde locale créée (${contacts.length} contacts, ${templates.length} modèles, ${signatures.length} signatures)');
     return file;
@@ -177,7 +195,8 @@ class LocalBackupService {
   /// Restaure une sauvegarde : ajoute les éléments manquants sans écraser
   /// les données actuelles (fusion, jamais de suppression).
   Future<void> restoreBackup(File file) async {
-    final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final content = await BackupCrypto.decrypt(await file.readAsString());
+    final data = jsonDecode(content) as Map<String, dynamic>;
     await mergeSyncData(data);
   }
 
@@ -186,9 +205,16 @@ class LocalBackupService {
   /// un autre appareil par n'importe quel moyen déjà utilisé (e-mail,
   /// WhatsApp, Google Drive...), sans dépendre d'un réseau entre les deux
   /// appareils. Retourne false si l'utilisateur annule.
-  Future<bool> exportToChosenLocation() async {
+  ///
+  /// [passphrase] : si renseigné, le fichier est chiffré (AES-256) et il faudra
+  /// ce mot de passe pour l'importer ; vide = fichier en clair.
+  Future<bool> exportToChosenLocation({String? passphrase}) async {
     final snapshot = await buildSyncSnapshot();
-    final bytes = Uint8List.fromList(utf8.encode(jsonEncode(snapshot)));
+    final plain = jsonEncode(snapshot);
+    final text = (passphrase != null && passphrase.isNotEmpty)
+        ? await BackupCrypto.encrypt(plain, passphrase: passphrase)
+        : plain;
+    final bytes = Uint8List.fromList(utf8.encode(text));
     final timestamp = DateTime.now().toIso8601String().split('T').first;
     final path = await FilePicker.platform.saveFile(
       fileName: 'emailing-pro-sauvegarde-$timestamp.json',
@@ -209,14 +235,21 @@ class LocalBackupService {
   /// e-mail, WhatsApp, Google Drive, clé USB...) et fusionne son contenu
   /// avec les données actuelles — jamais d'écrasement. Retourne false si
   /// l'utilisateur annule.
-  Future<bool> importFromChosenFile() async {
+  Future<bool> importFromChosenFile({Future<String?> Function()? askPassphrase}) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
       withData: true,
     );
     if (result == null || result.files.single.bytes == null) return false;
-    final content = utf8.decode(result.files.single.bytes!);
+    var content = utf8.decode(result.files.single.bytes!);
+    if (BackupCrypto.needsPassphrase(content)) {
+      final pass = askPassphrase == null ? null : await askPassphrase();
+      if (pass == null) return false; // annulé
+      content = await BackupCrypto.decrypt(content, passphrase: pass);
+    } else {
+      content = await BackupCrypto.decrypt(content);
+    }
     final data = jsonDecode(content) as Map<String, dynamic>;
     await mergeSyncData(data);
     await LogService().log('Sauvegarde importée depuis un fichier choisi par l\'utilisateur');

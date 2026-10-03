@@ -41,6 +41,14 @@ jobs:
 
       - run: flutter pub get
 
+      - name: Enregistrer la version de Flutter et le fichier de versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flutter --version --machine > /tmp/flutter-version.json
+          cp pubspec.lock /tmp/pubspec.lock
+          gh release upload latest /tmp/flutter-version.json /tmp/pubspec.lock --clobber --repo "$GITHUB_REPOSITORY" || true
+
       - name: Tests automatiques (file d'envoi, e-mails, signatures)
         run: flutter test 2>&1 | tee test-results.txt
 
