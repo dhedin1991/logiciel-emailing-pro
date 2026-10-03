@@ -37,8 +37,8 @@ class SmtpSendService {
 
   /// Ouvre UNE connexion SMTP réutilisable pendant toute une campagne
   /// (au lieu d'une nouvelle connexion + authentification par e-mail).
-  Future<PersistentConnection> openConnection(EmailAccount account) =>
-      PersistentConnection.connect(_serverFor(account));
+  Future<PersistentConnection> openConnection(EmailAccount account) async =>
+      PersistentConnection(_serverFor(account), timeout: const Duration(seconds: 60));
 
   Future<void> sendEmail({
     required EmailAccount account,
