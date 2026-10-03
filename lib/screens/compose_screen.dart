@@ -1,4 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
+import '../widgets/rich_body_editor.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -55,6 +61,65 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final _subjectController = TextEditingController();
   final _bodyController = TextEditingController();
 
+  /// Éditeur riche : Windows uniquement. Android garde le champ texte
+  /// habituel (structure inchangée). Le texte brut reste dans _bodyController
+  /// (brouillons, analyse, personnalisation), la mise en forme dans _quill.
+  final bool _rich = Platform.isWindows;
+  late final QuillController _quill = QuillController.basic();
+  bool _syncingBody = false;
+
+  void _setBody(String text, {String? deltaJson}) {
+    _syncingBody = true;
+    _bodyController.text = text;
+    if (_rich) {
+      Document doc;
+      try {
+        if (deltaJson != null) {
+          doc = Document.fromJson(jsonDecode(deltaJson) as List<dynamic>);
+        } else {
+          doc = Document();
+          if (text.isNotEmpty) doc.insert(0, text);
+        }
+      } catch (_) {
+        doc = Document();
+        if (text.isNotEmpty) doc.insert(0, text);
+      }
+      _quill.document = doc;
+      _quill.updateSelection(const TextSelection.collapsed(offset: 0), ChangeSource.local);
+    }
+    _syncingBody = false;
+  }
+
+  String? _currentDeltaJson() {
+    if (!_rich) return null;
+    try {
+      return jsonEncode(_quill.document.toDelta().toJson());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// HTML du message mis en forme ; null s'il n'y a aucune mise en forme
+  /// (le message part alors en texte simple, comme avant).
+  String? _richHtml() {
+    if (!_rich) return null;
+    try {
+      final ops = _quill.document.toDelta().toJson();
+      final hasFormatting = ops.any((o) => o is Map && o['attributes'] != null);
+      if (!hasFormatting) return null;
+      final list = ops.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      return QuillDeltaToHtmlConverter(list, ConverterOptions.forEmail()).convert();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Version HTML de la personnalisation : les valeurs insérées sont échappées.
+  String _personalizeItemHtml(String text, QueueEmailItem item) => text
+      .replaceAll('{{nom}}', escapeHtml(item.name))
+      .replaceAll('{{email}}', escapeHtml(item.email))
+      .replaceAll('{{entreprise}}', escapeHtml(item.company));
+
   List<EmailAccount> _accounts = [];
   EmailAccount? _selectedAccount;
   List<MessageTemplate> _templates = [];
@@ -84,6 +149,19 @@ class _ComposeScreenState extends State<ComposeScreen> {
     _loadData();
     _subjectController.addListener(_scheduleAutosave);
     _bodyController.addListener(_scheduleAutosave);
+    if (_rich) {
+      _quill.addListener(() {
+        if (_syncingBody) return;
+        var plain = _quill.document.toPlainText();
+        if (plain.endsWith('\n')) plain = plain.substring(0, plain.length - 1);
+        if (_bodyController.text != plain) {
+          _syncingBody = true;
+          _bodyController.text = plain;
+          _syncingBody = false;
+        }
+        _scheduleAutosave(); // aussi pour un simple changement de mise en forme
+      });
+    }
   }
 
   /// Enregistrement automatique : un seul brouillon par message (même id),
@@ -102,6 +180,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       subject: subject,
       body: body,
       savedAt: DateTime.now(),
+      deltaJson: _currentDeltaJson(),
     ));
   }
 
@@ -132,7 +211,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       if (draftToOpen != null) {
         _draftId = draftToOpen.id;
         _subjectController.text = draftToOpen.subject;
-        _bodyController.text = draftToOpen.body;
+        _setBody(draftToOpen.body, deltaJson: draftToOpen.deltaJson);
       }
       // Contacts transmis depuis l'écran Contacts (bouton "Rédiger") :
       // on bascule automatiquement en mode envoi multiple et on les
@@ -208,7 +287,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   void _applyTemplate(MessageTemplate template) {
     setState(() {
       _subjectController.text = template.subject;
-      _bodyController.text = template.body;
+      _setBody(template.body);
     });
   }
 
@@ -266,12 +345,21 @@ class _ComposeScreenState extends State<ComposeScreen> {
       setState(() {
         _draftId = selected.id;
         _subjectController.text = selected.subject;
-        _bodyController.text = selected.body;
+        _setBody(selected.body, deltaJson: selected.deltaJson);
       });
     }
   }
 
   void _insertSnippet(Snippet snippet) {
+    if (_rich) {
+      final sel = _quill.selection;
+      final maxIndex = _quill.document.length - 1;
+      final start = sel.start.clamp(0, maxIndex);
+      final end = sel.end.clamp(start, maxIndex);
+      _quill.replaceText(start, end - start, snippet.content,
+          TextSelection.collapsed(offset: start + snippet.content.length));
+      return;
+    }
     final controller = _bodyController;
     final selection = controller.selection;
     final text = controller.text;
@@ -427,8 +515,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
         to: _toController.text.trim(),
         cc: _ccController.text.trim(),
         subject: _subjectController.text.trim(),
-        body: composeBody(_bodyController.text, _selectedSignature).text,
-        htmlBody: composeBody(_bodyController.text, _selectedSignature).html,
+        body: composeBody(_bodyController.text, _selectedSignature, bodyHtml: _richHtml()).text,
+        htmlBody: composeBody(_bodyController.text, _selectedSignature, bodyHtml: _richHtml()).html,
         attachmentPaths: List.of(_attachmentPaths),
         sendAt: _scheduledFor!,
         recurrence: _recurrence,
@@ -442,7 +530,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _toController.clear();
         _ccController.clear();
         _subjectController.clear();
-        _bodyController.clear();
+        _setBody('');
         _attachmentPaths.clear();
         _scheduledFor = null;
         _recurrence = null;
@@ -561,7 +649,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
     try {
       final recipientForLog = _toController.text.trim();
-      final composed = composeBody(_bodyController.text, _selectedSignature);
+      final composed = composeBody(_bodyController.text, _selectedSignature, bodyHtml: _richHtml());
       await _sendService.sendEmail(
         account: _selectedAccount!,
         to: _toController.text.trim(),
@@ -578,7 +666,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _toController.clear();
         _ccController.clear();
         _subjectController.clear();
-        _bodyController.clear();
+        _setBody('');
         _attachmentPaths.clear();
       });
       await _discardCurrentDraft();
@@ -650,6 +738,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final account = _selectedAccount!;
     final subjectTemplate = _subjectController.text;
     final bodyTemplate = _bodyController.text;
+    final htmlTemplate = _richHtml();
     final signature = _selectedSignature;
     final attachments = List.of(_attachmentPaths);
 
@@ -670,6 +759,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
       signatureGetter: () => signature,
       personalize: (template, item) => _personalizeItem(template, item),
       attachmentPaths: attachments,
+      htmlBodyTemplate: htmlTemplate,
+      personalizeHtml: (template, item) => _personalizeItemHtml(template, item),
     ));
 
     if (!mounted) return;
@@ -685,7 +776,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     setState(() {
       _selectedContactIds.clear();
       _subjectController.clear();
-      _bodyController.clear();
+      _setBody('');
       _attachmentPaths.clear();
     });
     await _discardCurrentDraft();
@@ -703,12 +794,14 @@ class _ComposeScreenState extends State<ComposeScreen> {
         subject: pendingSubject,
         body: pendingBody,
         savedAt: DateTime.now(),
+        deltaJson: _currentDeltaJson(),
       )));
     }
     _toController.dispose();
     _ccController.dispose();
     _subjectController.dispose();
     _bodyController.dispose();
+    _quill.dispose();
     _minDelayController.dispose();
     _maxDelayController.dispose();
     _retriesController.dispose();
@@ -733,10 +826,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
       );
     }
 
-    return SingleChildScrollView(
+    final scrollView = SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
+      // Windows : cadre large (jusqu'à 1100 px) et centré. Android : inchangé (700 px).
+      child: Align(
+        alignment: _rich ? Alignment.topCenter : Alignment.topLeft,
+        child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: _rich ? 1100 : 700),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -933,11 +1029,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _bodyController,
-              decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
-              maxLines: 10,
-            ),
+            if (_rich)
+              RichBodyEditor(
+                controller: _quill,
+                height: (MediaQuery.of(context).size.height * 0.42).clamp(300.0, 640.0),
+              )
+            else
+              TextField(
+                controller: _bodyController,
+                decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
+                maxLines: 10,
+              ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => showMessageAnalysisDialog(
@@ -1055,7 +1157,25 @@ class _ComposeScreenState extends State<ComposeScreen> {
             ),
           ],
         ),
+        ),
       ),
+    );
+
+    if (!_rich) return scrollView;
+
+    // Raccourcis clavier Windows (Ctrl+B/I/U/K/Z/Y/A/C/X/V sont gérés par l'éditeur).
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
+          if (!_sending) _showPreviewThenSend();
+        },
+        const SingleActivator(LogicalKeyboardKey.keyP, control: true): () {
+          if (!_sending) _showPreviewThenSend();
+        },
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _saveDraft,
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): _openDrafts,
+      },
+      child: scrollView,
     );
   }
 }

@@ -126,11 +126,17 @@ class ComposedBody {
 /// en masse). La signature est ajoutée au moment de l'envoi (jamais écrite
 /// dans le texte du message) : changer de signature la REMPLACE, sans empilement.
 /// Sans signature : texte seul, comme avant.
-ComposedBody composeBody(String body, Signature? signature) {
-  if (signature == null) return ComposedBody(body, null);
-  final text = '$body\n\n${signatureText(signature)}';
-  final bodyHtml = _esc(body).replaceAll(RegExp(r'\r?\n'), '<br>');
-  final html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#111827;line-height:1.5;">$bodyHtml</div>'
-      '${signatureHtml(signature)}';
+///
+/// [bodyHtml] : corps mis en forme par l'éditeur riche (Windows) ; s'il est
+/// fourni, l'e-mail part en HTML + texte brut (multipart/alternative).
+ComposedBody composeBody(String body, Signature? signature, {String? bodyHtml}) {
+  if (signature == null && bodyHtml == null) return ComposedBody(body, null);
+  final text = signature == null ? body : '$body\n\n${signatureText(signature)}';
+  final inner = bodyHtml ?? _esc(body).replaceAll(RegExp(r'\r?\n'), '<br>');
+  final html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#111827;line-height:1.5;">$inner</div>'
+      '${signature == null ? '' : signatureHtml(signature)}';
   return ComposedBody(text, html);
 }
+
+/// Échappe un texte inséré dans du HTML (noms de contacts dans une campagne).
+String escapeHtml(String v) => _esc(v);

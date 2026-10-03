@@ -4,12 +4,15 @@ class EmailDraft {
   final String subject;
   final String body;
   final DateTime savedAt;
+  /// Mise en forme riche (Windows), au format JSON Quill ; null = texte simple.
+  final String? deltaJson;
 
   EmailDraft({
     required this.id,
     required this.subject,
     required this.body,
     required this.savedAt,
+    this.deltaJson,
   });
 
   Map<String, dynamic> toJson() => {
@@ -17,6 +20,7 @@ class EmailDraft {
         'subject': subject,
         'body': body,
         'savedAt': savedAt.toIso8601String(),
+        'deltaJson': deltaJson,
       };
 
   factory EmailDraft.fromJson(Map<String, dynamic> json) => EmailDraft(
@@ -24,5 +28,6 @@ class EmailDraft {
         subject: json['subject'] as String,
         body: json['body'] as String,
         savedAt: DateTime.parse(json['savedAt'] as String),
+        deltaJson: json['deltaJson'] as String?,
       );
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/compose_screen.dart';
 import 'screens/contacts_home_screen.dart';
@@ -152,6 +153,9 @@ class _EmailingProAppState extends State<EmailingProApp> {
           theme: _buildTheme(Brightness.light, seed),
           darkTheme: _buildTheme(Brightness.dark, seed),
           themeMode: ThemeService.instance.themeMode,
+          locale: const Locale('fr'),
+          localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
+          supportedLocales: FlutterQuillLocalizations.supportedLocales,
           home: AnimatedSwitcher(
             duration: const Duration(milliseconds: 350),
             child: _showSplash ? _SplashScreen(key: const ValueKey('splash')) : const LoginGateScreen(key: ValueKey('app'), child: HomeShell()),

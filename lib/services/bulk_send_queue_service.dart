@@ -51,6 +51,8 @@ class BulkSendQueueService extends ChangeNotifier {
   Signature? Function()? _lastSignatureGetter;
   String Function(String template, QueueEmailItem item)? _lastPersonalize;
   List<String>? _lastAttachmentPaths;
+  String? _lastHtmlBodyTemplate;
+  String Function(String template, QueueEmailItem item)? _lastPersonalizeHtml;
 
   // Rafraîchissement d'écran limité : au plus ~5 fois par seconde, au lieu
   // d'environ 6 fois PAR e-mail (cause de ralentissements en masse).
@@ -105,7 +107,11 @@ class BulkSendQueueService extends ChangeNotifier {
     required Signature? Function() signatureGetter,
     required String Function(String template, QueueEmailItem item) personalize,
     required List<String> attachmentPaths,
+    String? htmlBodyTemplate,
+    String Function(String template, QueueEmailItem item)? personalizeHtml,
   }) async {
+    _lastHtmlBodyTemplate = htmlBodyTemplate;
+    _lastPersonalizeHtml = personalizeHtml;
     _lastAccount = account;
     _lastSubjectTemplate = subjectTemplate;
     _lastBodyTemplate = bodyTemplate;
@@ -153,7 +159,10 @@ class BulkSendQueueService extends ChangeNotifier {
 
         final personalizedSubject = personalize(subjectTemplate, item);
         final personalizedBody = personalize(bodyTemplate, item);
-        final composed = composeBody(personalizedBody, signatureGetter());
+        final personalizedHtml = htmlBodyTemplate == null
+            ? null
+            : (personalizeHtml ?? personalize)(htmlBodyTemplate, item);
+        final composed = composeBody(personalizedBody, signatureGetter(), bodyHtml: personalizedHtml);
 
         item.status = QueueItemStatus.connectingSmtp;
         _notifyThrottled();
@@ -277,6 +286,8 @@ class BulkSendQueueService extends ChangeNotifier {
       signatureGetter: _lastSignatureGetter!,
       personalize: _lastPersonalize!,
       attachmentPaths: _lastAttachmentPaths!,
+      htmlBodyTemplate: _lastHtmlBodyTemplate,
+      personalizeHtml: _lastPersonalizeHtml,
     );
   }
 

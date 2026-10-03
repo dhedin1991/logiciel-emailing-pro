@@ -21,6 +21,10 @@ dependencies:
   mailer: ^6.1.2
   google_fonts: ^6.2.1
   path_provider: ^2.1.4
+  flutter_localizations:
+    sdk: flutter
+  flutter_quill: ^11.4.0
+  vsc_quill_delta_to_html: ^1.0.5
 
 dev_dependencies:
   flutter_test:

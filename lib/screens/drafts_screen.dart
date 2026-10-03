@@ -56,6 +56,7 @@ class _DraftsScreenState extends State<DraftsScreen> {
       subject: draft.subject.isEmpty ? '' : '${draft.subject} (copie)',
       body: draft.body,
       savedAt: DateTime.now(),
+      deltaJson: draft.deltaJson,
     ));
     await _load();
   }
