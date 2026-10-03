@@ -95,6 +95,7 @@ class SchedulerService {
             cc: email.cc,
             subject: email.subject,
             body: email.body,
+            htmlBody: email.htmlBody,
             attachmentPaths: email.attachmentPaths,
           );
           // L'historique est déjà écrit par le service d'envoi (plus de double entrée).

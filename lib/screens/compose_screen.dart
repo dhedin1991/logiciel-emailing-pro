@@ -16,6 +16,7 @@ import '../services/scheduled_email_storage.dart';
 import '../services/history_storage.dart';
 import '../services/template_storage.dart';
 import '../services/signature_storage.dart';
+import '../services/signature_renderer.dart';
 import '../services/bulk_send_queue_service.dart';
 import '../services/send_jobs_manager.dart';
 import '../services/draft_storage.dart';
@@ -426,9 +427,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
         to: _toController.text.trim(),
         cc: _ccController.text.trim(),
         subject: _subjectController.text.trim(),
-        body: _selectedSignature != null
-            ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
-            : _bodyController.text,
+        body: composeBody(_bodyController.text, _selectedSignature).text,
+        htmlBody: composeBody(_bodyController.text, _selectedSignature).html,
         attachmentPaths: List.of(_attachmentPaths),
         sendAt: _scheduledFor!,
         recurrence: _recurrence,
@@ -510,9 +510,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         return;
       }
     }
-    final bodyWithSignature = _selectedSignature != null
-        ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
-        : _bodyController.text;
+    final bodyWithSignature = composeBody(_bodyController.text, _selectedSignature).text;
     final toDisplay = _bulkMode
         ? '${_selectedContactIds.length} destinataire(s) sélectionné(s)'
         : _toController.text;
@@ -563,15 +561,14 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
     try {
       final recipientForLog = _toController.text.trim();
-      final bodyWithSignature = _selectedSignature != null
-          ? '${_bodyController.text}\n\n${_selectedSignature!.content}'
-          : _bodyController.text;
+      final composed = composeBody(_bodyController.text, _selectedSignature);
       await _sendService.sendEmail(
         account: _selectedAccount!,
         to: _toController.text.trim(),
         cc: _ccController.text.trim(),
         subject: _subjectController.text.trim(),
-        body: bodyWithSignature,
+        body: composed.text,
+        htmlBody: composed.html,
         attachmentPaths: List.of(_attachmentPaths),
       );
       if (!mounted) return;

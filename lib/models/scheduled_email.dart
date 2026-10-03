@@ -6,6 +6,8 @@ class ScheduledEmail {
   final String cc;
   final String subject;
   final String body;
+  /// Version HTML (signature mise en forme), null = texte seul.
+  final String? htmlBody;
   final List<String> attachmentPaths;
   final DateTime sendAt;
   final bool sent;
@@ -22,6 +24,7 @@ class ScheduledEmail {
     required this.to,
     required this.subject,
     required this.body,
+    this.htmlBody,
     required this.sendAt,
     this.cc = '',
     this.attachmentPaths = const [],
@@ -39,6 +42,7 @@ class ScheduledEmail {
         'cc': cc,
         'subject': subject,
         'body': body,
+        'htmlBody': htmlBody,
         'attachmentPaths': attachmentPaths,
         'sendAt': sendAt.toIso8601String(),
         'sent': sent,
@@ -55,6 +59,7 @@ class ScheduledEmail {
         cc: json['cc'] as String? ?? '',
         subject: json['subject'] as String,
         body: json['body'] as String,
+        htmlBody: json['htmlBody'] as String?,
         attachmentPaths: (json['attachmentPaths'] as List<dynamic>? ?? []).cast<String>(),
         sendAt: DateTime.parse(json['sendAt'] as String),
         sent: json['sent'] as bool? ?? false,
@@ -79,6 +84,7 @@ class ScheduledEmail {
         cc: cc,
         subject: subject,
         body: body,
+        htmlBody: htmlBody,
         attachmentPaths: attachmentPaths,
         sendAt: sendAt ?? this.sendAt,
         sent: sent ?? this.sent,

@@ -10,6 +10,7 @@ import 'email_dispatch_service.dart';
 import 'gmail_auth_service.dart';
 import 'log_service.dart';
 import 'mime_utils.dart';
+import 'signature_renderer.dart';
 
 /// File d'attente d'envoi strictement séquentielle : un seul e-mail est
 /// traité à la fois (lecture -> génération -> connexion -> envoi ->
@@ -151,11 +152,8 @@ class BulkSendQueueService extends ChangeNotifier {
         _notifyThrottled();
 
         final personalizedSubject = personalize(subjectTemplate, item);
-        var personalizedBody = personalize(bodyTemplate, item);
-        final signature = signatureGetter();
-        if (signature != null) {
-          personalizedBody = '$personalizedBody\n\n${signature.content}';
-        }
+        final personalizedBody = personalize(bodyTemplate, item);
+        final composed = composeBody(personalizedBody, signatureGetter());
 
         item.status = QueueItemStatus.connectingSmtp;
         _notifyThrottled();
@@ -172,7 +170,8 @@ class BulkSendQueueService extends ChangeNotifier {
             account: account,
             to: item.email,
             subject: personalizedSubject,
-            body: personalizedBody,
+            body: composed.text,
+            htmlBody: composed.html,
             attachmentPaths: attachmentPaths,
             preloadedAttachments: preloaded,
             smtpConnection: _smtpConnection,
