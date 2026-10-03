@@ -115,6 +115,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
     }
   }
 
+  static const _fontSteps = <String?>['small', null, 'large', 'huge'];
+
+  /// Change la taille du texte sélectionné d'un cran (petit, normal, grand, très grand).
+  void _stepFontSize(int delta) {
+    final current = _quill.getSelectionStyle().attributes[Attribute.size.key]?.value as String?;
+    final index = _fontSteps.indexOf(current);
+    final next = ((index < 0 ? 1 : index) + delta).clamp(0, _fontSteps.length - 1);
+    final value = _fontSteps[next];
+    _quill.formatSelection(value == null ? Attribute.clone(Attribute.size, null) : SizeAttribute(value));
+  }
+
   /// Version HTML de la personnalisation : les valeurs insérées sont échappées.
   String _personalizeItemHtml(String text, QueueEmailItem item) => text
       .replaceAll('{{nom}}', escapeHtml(item.name))
@@ -1238,6 +1249,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
           final end = sel.end.clamp(start, maxIndex);
           _quill.replaceText(start, end - start, text, TextSelection.collapsed(offset: start + text.length));
         },
+        // Ctrl+Maj+> / < : agrandir / réduire la taille du texte sélectionné.
+        const SingleActivator(LogicalKeyboardKey.greater, control: true, shift: true): () => _stepFontSize(1),
+        const SingleActivator(LogicalKeyboardKey.less, control: true, shift: true): () => _stepFontSize(-1),
+        const SingleActivator(LogicalKeyboardKey.period, control: true, shift: true): () => _stepFontSize(1),
+        const SingleActivator(LogicalKeyboardKey.comma, control: true, shift: true): () => _stepFontSize(-1),
         // Ctrl+Maj+7 / 8 : liste numérotée / à puces.
         const SingleActivator(LogicalKeyboardKey.digit7, control: true, shift: true): () =>
             _quill.formatSelection(_quill.getSelectionStyle().attributes.containsKey('list') &&
