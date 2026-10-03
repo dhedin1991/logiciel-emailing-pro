@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/sent_email_log.dart';
+import 'trash_service.dart';
 
 /// Historique des envois, stocké dans un fichier (une ligne JSON par envoi).
 ///
@@ -90,7 +91,8 @@ class HistoryStorage {
           entries = entries.sublist(entries.length - _maxEntries);
           await _writeAll(file, entries);
         }
-        return entries.reversed.toList();
+        entries.sort((a, b) => b.sentAt.compareTo(a.sentAt));
+        return entries;
       });
 
   Future<void> _writeAll(File file, List<SentEmailLog> oldestFirst) async {
@@ -129,7 +131,19 @@ class HistoryStorage {
 
   Future<void> clearAll() => _locked(() async {
         final file = await _file();
-        if (await file.exists()) await file.delete();
+        if (await file.exists()) {
+          // Les 1 000 entrées les plus récentes vont dans la corbeille.
+          final entries = _parse(await file.readAsLines());
+          final recent = entries.length > 1000 ? entries.sublist(entries.length - 1000) : entries;
+          if (recent.isNotEmpty) {
+            await TrashService.instance.add(
+              type: 'history',
+              label: '${recent.length} entrées d\'historique',
+              payloads: recent.map((e) => e.toJson()).toList(),
+            );
+          }
+          await file.delete();
+        }
         await _secure.delete(key: _legacyKey);
       });
 
@@ -138,7 +152,17 @@ class HistoryStorage {
         await _migrateIfNeeded(file);
         if (!await file.exists()) return;
         final entries = _parse(await file.readAsLines());
+        final removed = entries.where((e) => ids.contains(e.id)).toList();
         entries.removeWhere((e) => ids.contains(e.id));
         await _writeAll(file, entries);
+        if (removed.isNotEmpty) {
+          await TrashService.instance.add(
+            type: 'history',
+            label: removed.length == 1
+                ? 'Envoi à ${removed.first.to}'
+                : '${removed.length} entrées d\'historique',
+            payloads: removed.map((e) => e.toJson()).toList(),
+          );
+        }
       });
 }

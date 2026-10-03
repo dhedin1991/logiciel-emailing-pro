@@ -227,19 +227,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Future<void> _removeAccount(String email) async {
-    final account = _accounts.firstWhere((a) => a.email == email);
-    await deleteWithUndo(
-      context: context,
-      itemLabel: email,
-      onDelete: () async {
-        await _storage.removeAccount(email);
-        await _loadAccounts();
-      },
-      onUndo: () async {
-        await _storage.addOrUpdateAccount(account);
-        await _loadAccounts();
-      },
-    );
+    // Les comptes et leurs mots de passe ne vont jamais dans la corbeille :
+    // suppression définitive après double confirmation.
+    final confirmed = await confirmDeleteTwice(context, email);
+    if (!confirmed || !mounted) return;
+    await _storage.removeAccount(email);
+    await _loadAccounts();
   }
 
   String _providerLabel(String provider) {

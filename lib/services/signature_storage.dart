@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/signature.dart';
+import 'trash_service.dart';
 
 class SignatureStorage {
   static const _key = 'signatures';
@@ -26,8 +27,16 @@ class SignatureStorage {
 
   Future<void> removeSignature(String id) async {
     final signatures = await loadSignatures();
+    final removed = signatures.where((s) => s.id == id).toList();
     signatures.removeWhere((s) => s.id == id);
     await saveSignatures(signatures);
+    if (removed.isNotEmpty) {
+      await TrashService.instance.add(
+        type: 'signature',
+        label: removed.first.name,
+        payloads: removed.map((s) => s.toJson()).toList(),
+      );
+    }
   }
 
   Future<void> updateSignature(Signature updated) async {

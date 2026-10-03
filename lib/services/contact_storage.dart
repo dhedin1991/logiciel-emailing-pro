@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/contact.dart';
+import 'trash_service.dart';
 
 class ContactStorage {
   static const _key = 'contacts';
@@ -41,16 +42,23 @@ class ContactStorage {
     return added;
   }
 
-  Future<void> removeContact(String id) async {
-    final contacts = await loadContacts();
-    contacts.removeWhere((c) => c.id == id);
-    await saveContacts(contacts);
-  }
+  /// Retire un contact ; il part dans la corbeille (restaurable).
+  Future<void> removeContact(String id) => removeContacts({id});
 
   Future<void> removeContacts(Set<String> ids) async {
     final contacts = await loadContacts();
+    final removed = contacts.where((c) => ids.contains(c.id)).toList();
     contacts.removeWhere((c) => ids.contains(c.id));
     await saveContacts(contacts);
+    if (removed.isNotEmpty) {
+      await TrashService.instance.add(
+        type: 'contact',
+        label: removed.length == 1
+            ? (removed.first.name.isNotEmpty ? removed.first.name : removed.first.email)
+            : '${removed.length} contacts',
+        payloads: removed.map((c) => c.toJson()).toList(),
+      );
+    }
   }
 
   Future<void> updateContact(Contact updated) async {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/contact_list.dart';
+import 'trash_service.dart';
 
 class ContactListStorage {
   static const _key = 'contact_lists';
@@ -26,8 +27,16 @@ class ContactListStorage {
 
   Future<void> remove(String id) async {
     final lists = await loadAll();
+    final removed = lists.where((l) => l.id == id).toList();
     lists.removeWhere((l) => l.id == id);
     await saveAll(lists);
+    if (removed.isNotEmpty) {
+      await TrashService.instance.add(
+        type: 'contactList',
+        label: removed.first.name,
+        payloads: removed.map((l) => l.toJson()).toList(),
+      );
+    }
   }
 
   Future<void> update(ContactList updated) async {

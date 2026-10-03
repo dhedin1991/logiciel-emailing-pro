@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/scheduled_email.dart';
+import 'trash_service.dart';
 
 class ScheduledEmailStorage {
   static const _key = 'scheduled_emails';
@@ -41,8 +42,16 @@ class ScheduledEmailStorage {
 
   Future<void> remove(String id) => _locked(() async {
         final items = await loadAll();
+        final removed = items.where((e) => e.id == id).toList();
         items.removeWhere((e) => e.id == id);
         await saveAll(items);
+        if (removed.isNotEmpty) {
+          await TrashService.instance.add(
+            type: 'scheduled',
+            label: removed.first.subject.isEmpty ? removed.first.to : removed.first.subject,
+            payloads: removed.map((e) => e.toJson()).toList(),
+          );
+        }
       });
 
   Future<void> update(ScheduledEmail updated) => _locked(() async {

@@ -46,6 +46,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final _contactListStorage = ContactListStorage();
   final _scheduledStorage = ScheduledEmailStorage();
   final _uuid = const Uuid();
+  late String _draftId = const Uuid().v4();
+  Timer? _autosaveTimer;
 
   final _toController = TextEditingController();
   final _ccController = TextEditingController();
@@ -79,6 +81,34 @@ class _ComposeScreenState extends State<ComposeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _subjectController.addListener(_scheduleAutosave);
+    _bodyController.addListener(_scheduleAutosave);
+  }
+
+  /// Enregistrement automatique : un seul brouillon par message (même id),
+  /// 3 secondes après la dernière frappe.
+  void _scheduleAutosave() {
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(seconds: 3), _autosaveNow);
+  }
+
+  Future<void> _autosaveNow() async {
+    final subject = _subjectController.text;
+    final body = _bodyController.text;
+    if (subject.trim().isEmpty && body.trim().isEmpty) return;
+    await _draftStorage.upsertDraft(EmailDraft(
+      id: _draftId,
+      subject: subject,
+      body: body,
+      savedAt: DateTime.now(),
+    ));
+  }
+
+  /// Message envoyé ou programmé : son brouillon disparaît (sans passer par la corbeille).
+  Future<void> _discardCurrentDraft() async {
+    _autosaveTimer?.cancel();
+    await _draftStorage.removeDraft(_draftId, toTrash: false);
+    _draftId = const Uuid().v4();
   }
 
   Future<void> _loadData() async {
@@ -89,6 +119,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final contactLists = await _contactListStorage.loadAll();
     if (!mounted) return;
     final prefill = ComposePrefill.instance.consume();
+    final draftToOpen = ComposePrefill.instance.consumeDraft();
     setState(() {
       _accounts = accounts;
       _selectedAccount = accounts.isNotEmpty ? accounts.first : null;
@@ -97,6 +128,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
       _contacts = contacts;
       _contactLists = contactLists;
       _loading = false;
+      if (draftToOpen != null) {
+        _draftId = draftToOpen.id;
+        _subjectController.text = draftToOpen.subject;
+        _bodyController.text = draftToOpen.body;
+      }
       // Contacts transmis depuis l'écran Contacts (bouton "Rédiger") :
       // on bascule automatiquement en mode envoi multiple et on les
       // pré-sélectionne, pour éviter tout copier-coller manuel.
@@ -180,12 +216,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   Future<void> _saveDraft() async {
     if (_subjectController.text.trim().isEmpty && _bodyController.text.trim().isEmpty) return;
-    await _draftStorage.addDraft(EmailDraft(
-      id: const Uuid().v4(),
-      subject: _subjectController.text,
-      body: _bodyController.text,
-      savedAt: DateTime.now(),
-    ));
+    _autosaveTimer?.cancel();
+    await _autosaveNow();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Brouillon enregistré.')));
   }
@@ -231,6 +263,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
     if (selected != null && mounted) {
       setState(() {
+        _draftId = selected.id;
         _subjectController.text = selected.subject;
         _bodyController.text = selected.body;
       });
@@ -414,6 +447,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _scheduledFor = null;
         _recurrence = null;
       });
+      await _discardCurrentDraft();
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -550,6 +584,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         _bodyController.clear();
         _attachmentPaths.clear();
       });
+      await _discardCurrentDraft();
       await LogService().log('Envoi simple réussi vers $recipientForLog, compte ${_selectedAccount?.email}');
     } catch (e) {
       if (!mounted) return;
@@ -656,10 +691,23 @@ class _ComposeScreenState extends State<ComposeScreen> {
       _bodyController.clear();
       _attachmentPaths.clear();
     });
+    await _discardCurrentDraft();
   }
 
   @override
   void dispose() {
+    _autosaveTimer?.cancel();
+    final pendingSubject = _subjectController.text;
+    final pendingBody = _bodyController.text;
+    if (pendingSubject.trim().isNotEmpty || pendingBody.trim().isNotEmpty) {
+      // On quitte l'écran en cours de rédaction : le brouillon est conservé.
+      unawaited(_draftStorage.upsertDraft(EmailDraft(
+        id: _draftId,
+        subject: pendingSubject,
+        body: pendingBody,
+        savedAt: DateTime.now(),
+      )));
+    }
     _toController.dispose();
     _ccController.dispose();
     _subjectController.dispose();

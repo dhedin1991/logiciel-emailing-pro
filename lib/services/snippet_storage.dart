@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/snippet.dart';
+import 'trash_service.dart';
 
 class SnippetStorage {
   static const _key = 'snippets';
@@ -26,7 +27,15 @@ class SnippetStorage {
 
   Future<void> removeSnippet(String id) async {
     final snippets = await loadSnippets();
+    final removed = snippets.where((s) => s.id == id).toList();
     snippets.removeWhere((s) => s.id == id);
     await saveSnippets(snippets);
+    if (removed.isNotEmpty) {
+      await TrashService.instance.add(
+        type: 'snippet',
+        label: removed.first.label,
+        payloads: removed.map((s) => s.toJson()).toList(),
+      );
+    }
   }
 }

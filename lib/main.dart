@@ -18,6 +18,10 @@ import 'services/theme_service.dart';
 import 'services/local_backup_service.dart';
 import 'services/onboarding_service.dart';
 import 'screens/onboarding_dialog.dart';
+import 'screens/drafts_screen.dart';
+import 'screens/trash_screen.dart';
+import 'services/trash_service.dart';
+import 'services/trash_restorers.dart';
 
 void main() {
   runApp(const EmailingProApp());
@@ -217,6 +221,8 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    registerTrashRestorers();
+    TrashService.instance.refresh();
     _scheduler.start();
     _maybeShowOnboarding();
   }
@@ -246,7 +252,24 @@ class _HomeShellState extends State<HomeShell> {
     _Section('Historique', Icons.history_outlined, Icons.history),
     _Section('Statistiques', Icons.bar_chart_outlined, Icons.bar_chart),
     _Section('Paramètres', Icons.settings_outlined, Icons.settings),
+    _Section('Brouillons', Icons.drafts_outlined, Icons.drafts),
+    _Section('Corbeille', Icons.delete_outline, Icons.delete),
   ];
+
+  static const int _trashIndex = 8;
+
+  /// Icône d'une section ; la corbeille affiche une pastille avec le nombre d'éléments.
+  Widget _iconFor(int index, bool selected) {
+    final section = _sections[index];
+    final icon = Icon(selected ? section.selectedIcon : section.icon);
+    if (index != _trashIndex) return icon;
+    return ValueListenableBuilder<int>(
+      valueListenable: TrashService.instance.count,
+      builder: (context, n, _) => n == 0
+          ? icon
+          : Badge(label: Text(n > 99 ? '99+' : '$n'), child: icon),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +290,10 @@ class _HomeShellState extends State<HomeShell> {
       content = const StatisticsScreen();
     } else if (_selectedIndex == 6) {
       content = const SettingsScreen();
+    } else if (_selectedIndex == 7) {
+      content = DraftsScreen(onNavigate: (i) => setState(() => _selectedIndex = i));
+    } else if (_selectedIndex == _trashIndex) {
+      content = const TrashScreen();
     } else {
       content = _PlaceholderScreen(title: _sections[_selectedIndex].label);
     }
@@ -329,7 +356,12 @@ class _HomeShellState extends State<HomeShell> {
         appBar: appBar,
         body: Row(
           children: [
-            NavigationRail(
+            LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: NavigationRail(
               extended: MediaQuery.of(context).size.width >= 1100,
               selectedIndex: _selectedIndex,
               onDestinationSelected: (i) => setState(() => _selectedIndex = i),
@@ -357,13 +389,18 @@ class _HomeShellState extends State<HomeShell> {
                       )
                     : _BrandMark(size: 26),
               ),
-              destinations: _sections
-                  .map((s) => NavigationRailDestination(
-                        icon: Icon(s.icon),
-                        selectedIcon: Icon(s.selectedIcon),
-                        label: Text(s.label),
-                      ))
-                  .toList(),
+              destinations: List.generate(
+                _sections.length,
+                (i) => NavigationRailDestination(
+                  icon: _iconFor(i, false),
+                  selectedIcon: _iconFor(i, true),
+                  label: Text(_sections[i].label),
+                ),
+              ),
+            )
+                  ),
+                ),
+              ),
             ),
             const VerticalDivider(width: 1),
             Expanded(child: content),
@@ -398,8 +435,10 @@ class _HomeShellState extends State<HomeShell> {
                     final section = _sections[i];
                     final selected = i == _selectedIndex;
                     return ListTile(
-                      leading: Icon(selected ? section.selectedIcon : section.icon,
-                          color: selected ? Theme.of(context).colorScheme.primary : null),
+                      leading: IconTheme(
+                        data: IconThemeData(color: selected ? Theme.of(context).colorScheme.primary : null),
+                        child: _iconFor(i, selected),
+                      ),
                       title: Text(
                         section.label,
                         style: TextStyle(

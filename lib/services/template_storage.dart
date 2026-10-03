@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/message_template.dart';
+import 'trash_service.dart';
 
 class TemplateStorage {
   static const _key = 'message_templates';
@@ -26,8 +27,16 @@ class TemplateStorage {
 
   Future<void> removeTemplate(String id) async {
     final templates = await loadTemplates();
+    final removed = templates.where((t) => t.id == id).toList();
     templates.removeWhere((t) => t.id == id);
     await saveTemplates(templates);
+    if (removed.isNotEmpty) {
+      await TrashService.instance.add(
+        type: 'template',
+        label: removed.first.name,
+        payloads: removed.map((t) => t.toJson()).toList(),
+      );
+    }
   }
 
   Future<void> updateTemplate(MessageTemplate updated) async {
