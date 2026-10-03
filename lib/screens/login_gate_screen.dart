@@ -88,6 +88,11 @@ class _LoginGateScreenState extends State<LoginGateScreen> {
       setState(() => _errorMessage = 'Saisissez votre mot de passe.');
       return;
     }
+    final locked = await _authService.remainingLockSeconds();
+    if (locked > 0) {
+      setState(() => _errorMessage = 'Trop d\'essais. Réessayez dans $locked s.');
+      return;
+    }
     setState(() => _submitting = true);
     final ok = await _authService.verifyPassword(_passwordController.text);
     if (!mounted) return;

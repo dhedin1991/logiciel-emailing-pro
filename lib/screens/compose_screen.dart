@@ -1217,6 +1217,38 @@ class _ComposeScreenState extends State<ComposeScreen> {
         },
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): _saveDraft,
         const SingleActivator(LogicalKeyboardKey.keyO, control: true): _openDrafts,
+        // Ctrl+N : nouveau message (le brouillon en cours est conservé automatiquement).
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () async {
+          await _autosaveNow();
+          if (!mounted) return;
+          setState(() {
+            _draftId = const Uuid().v4();
+            _subjectController.clear();
+            _setBody('');
+          });
+        },
+        // Ctrl+Maj+V : coller sans mise en forme.
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true): () async {
+          final data = await Clipboard.getData(Clipboard.kTextPlain);
+          final text = data?.text;
+          if (text == null || text.isEmpty) return;
+          final sel = _quill.selection;
+          final maxIndex = _quill.document.length - 1;
+          final start = sel.start.clamp(0, maxIndex);
+          final end = sel.end.clamp(start, maxIndex);
+          _quill.replaceText(start, end - start, text, TextSelection.collapsed(offset: start + text.length));
+        },
+        // Ctrl+Maj+7 / 8 : liste numérotée / à puces.
+        const SingleActivator(LogicalKeyboardKey.digit7, control: true, shift: true): () =>
+            _quill.formatSelection(_quill.getSelectionStyle().attributes.containsKey('list') &&
+                    _quill.getSelectionStyle().attributes['list']?.value == 'ordered'
+                ? Attribute.clone(Attribute.ol, null)
+                : Attribute.ol),
+        const SingleActivator(LogicalKeyboardKey.digit8, control: true, shift: true): () =>
+            _quill.formatSelection(_quill.getSelectionStyle().attributes.containsKey('list') &&
+                    _quill.getSelectionStyle().attributes['list']?.value == 'bullet'
+                ? Attribute.clone(Attribute.ul, null)
+                : Attribute.ul),
       },
       child: scrollView,
     );
